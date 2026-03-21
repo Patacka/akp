@@ -19,7 +19,12 @@
     "experiment:e2": "tsx src/experiments/run.ts --experiment E2",
     "experiment:e3": "tsx src/experiments/run.ts --experiment E3",
     "experiment:e4": "tsx src/experiments/run.ts --experiment E4",
-    "experiment:e5": "tsx src/experiments/run.ts --experiment E5"
+    "experiment:e5": "tsx src/experiments/run.ts --experiment E5",
+    "experiment:jan": "tsx src/experiments/run.ts --provider jan --model auto",
+    "experiment:claude": "tsx src/experiments/run.ts --provider claude",
+    "experiment:openai": "tsx src/experiments/run.ts --provider openai",
+    "experiment:gemini": "tsx src/experiments/run.ts --provider gemini",
+    "experiment:openrouter": "tsx src/experiments/run.ts --provider openrouter"
   },
   "dependencies": {
     "@automerge/automerge": "^3.0.0",

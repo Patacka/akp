@@ -52,13 +52,45 @@ Agents send it as `Authorization: Bearer your-secret-here` or `X-API-Key: your-s
 
 ---
 
-## Using Jan as LLM backend
+## LLM backends
 
-Open [Jan](https://jan.ai) with a model loaded, then start normally — AKP will detect it automatically and enable LLM-powered reviews.
+AKP supports multiple LLM backends for Stage 3 peer review. Set the relevant environment variable and it is auto-detected on start.
+
+| Backend | Env var | Notes |
+|---|---|---|
+| **Jan** (local) | `JAN_BASE_URL` / `JAN_API_KEY` | Open Jan with a model loaded |
+| **Claude** | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` default |
+| **OpenAI** | `OPENAI_API_KEY` | `gpt-4o-mini` default |
+| **Gemini** | `GEMINI_API_KEY` | `gemini-2.0-flash` default |
+| **OpenRouter** | `OPENROUTER_API_KEY` | Auto-discovers available free models |
+| **llama.cpp** | `LLAMACPP_BASE` | Local llama-server binary |
 
 ```bash
-# Or point to a specific Jan instance
-JAN_BASE_URL=http://localhost:1337/v1 JAN_API_KEY=12345 npm start
+# Jan (local, no cost)
+JAN_BASE_URL=http://localhost:1337/v1 npm start
+
+# Claude
+ANTHROPIC_API_KEY=sk-ant-... npm start
+
+# OpenAI
+OPENAI_API_KEY=sk-... npm start
+
+# Gemini
+GEMINI_API_KEY=... npm start
+```
+
+Run experiments against any backend:
+
+```bash
+npm run experiment:jan        # Jan local
+npm run experiment:claude     # Claude API
+npm run experiment:openai     # OpenAI API
+npm run experiment:gemini     # Gemini API
+npm run experiment:openrouter # OpenRouter free models
+
+# Or pick a specific model
+npm run experiment -- --provider claude --model claude-haiku-4-5-20251001
+npm run experiment -- --provider openai --model gpt-4o --experiment E7
 ```
 
 ---

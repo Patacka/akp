@@ -6,24 +6,34 @@
  *   npx tsx src/experiments/run.ts [options]
  *
  * Options:
- *   --experiment <E1|E2|E3|E4|E5|all>   Which experiment(s) to run (default: all)
- *   --model <jan-model-id|auto>            Use Jan (localhost:1337) as LLM backend.
- *                                        Pass the Jan model ID or "auto" to use whatever Jan has loaded.
- *   --rounds <n>                         Override default round count
- *   --sybils <n>                         E3 only: number of Sybil agents (default: 10)
- *   --agents <n>                         E4 only: number of peer agents (default: 5)
- *   --verbose                            Log per-agent actions
- *   --json                               Output raw JSON summary instead of formatted table
+ *   --experiment <E1-E9|all>    Which experiment(s) to run (default: all)
+ *   --provider <name>           LLM backend: jan|claude|openai|gemini|openrouter
+ *                               Defaults to auto-detect from env vars, then jan.
+ *   --model <id|auto>           Model ID for the chosen provider (default: provider default)
+ *   --rounds <n>                Override default round count
+ *   --sybils <n>                E3/E6: number of Sybil agents (default: 10)
+ *   --agents <n>                E4: number of peer agents (default: 5)
+ *   --verbose                   Log per-agent actions
+ *   --json                      Output raw JSON summary instead of formatted table
  *
  * Examples:
  *   # Fast deterministic run (no LLM needed)
- *   npx tsx src/experiments/run.ts --experiment E1
+ *   npx tsx src/experiments/run.ts
  *
- *   # Run E2 with Jan (must have Jan open with a model loaded)
- *   npx tsx src/experiments/run.ts --model auto --experiment E2
+ *   # Jan (local, OpenAI-compatible)
+ *   npx tsx src/experiments/run.ts --provider jan --model auto
  *
- *   # Run with a specific Jan model ID
- *   npx tsx src/experiments/run.ts --model llama3.1-8b-instruct --experiment E7
+ *   # Claude
+ *   ANTHROPIC_API_KEY=sk-... npx tsx src/experiments/run.ts --provider claude
+ *
+ *   # OpenAI
+ *   OPENAI_API_KEY=sk-... npx tsx src/experiments/run.ts --provider openai --model gpt-4o-mini
+ *
+ *   # Gemini
+ *   GEMINI_API_KEY=... npx tsx src/experiments/run.ts --provider gemini
+ *
+ *   # OpenRouter (free models)
+ *   OPENROUTER_API_KEY=... npx tsx src/experiments/run.ts --provider openrouter
  */
 
 import {
@@ -40,10 +50,7 @@ import {
   type ExperimentKey,
 } from './experiments.js'
 import type { MetricsCollector, ExperimentSummary } from './metrics.js'
-import {
-  connectToJan,
-  type LlamaCppServer,
-} from '../pipeline/stage3-llamacpp.js'
+import { resolveBackend, detectProvider, type Provider } from '../pipeline/stage3-backends.js'
 import type { LLMAgent } from '../pipeline/stage3.js'
 
 // ── Argument parsing ──────────────────────────────────────────────────────────
@@ -58,6 +65,7 @@ function parseArgs() {
 
   return {
     experiment: (get('--experiment', 'all') as ExperimentKey | 'all'),
+    provider: get('--provider') as Provider | undefined,
     model: get('--model'),
     rounds: get('--rounds') ? parseInt(get('--rounds')!) : undefined,
     sybils: get('--sybils') ? parseInt(get('--sybils')!) : undefined,
@@ -108,31 +116,30 @@ function printSummaryTable(results: Array<{ key: string; name: string; summary: 
   console.log()
 }
 
-// ── LLM setup ─────────────────────────────────────────────────────────────────
-
-async function setupLlm(modelArg: string): Promise<{ server: LlamaCppServer; agent: LLMAgent }> {
-  // modelArg is the Jan model ID (e.g. "llama3.1-8b-instruct").
-  // Pass undefined to let Jan auto-detect the first loaded model.
-  const modelId = modelArg === 'auto' ? undefined : modelArg
-  console.log(`  Connecting to Jan at localhost:1337 (model: ${modelId ?? 'auto-detect'})`)
-  const server = await connectToJan(modelId)
-  const agent = server.createAgent('jan-reviewer')
-  return { server, agent }
-}
 
 // ── Runner ────────────────────────────────────────────────────────────────────
 
 async function main() {
   const args = parseArgs()
 
-  let llmServer: LlamaCppServer | undefined
+  let stopBackend: (() => Promise<void>) | undefined
   let llmAgent: LLMAgent | undefined
 
-  if (args.model) {
-    console.log(`\nInitializing llama.cpp with model: ${args.model}`)
-    const setup = await setupLlm(args.model)
-    llmServer = setup.server
-    llmAgent = setup.agent
+  // Activate LLM backend if --provider or --model is given, or if an API key is set
+  const explicitProvider = args.provider ?? (args.model ? 'jan' : undefined)
+  const provider = explicitProvider ?? (
+    process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY ||
+    process.env.GEMINI_API_KEY || process.env.OPENROUTER_API_KEY
+      ? detectProvider()
+      : undefined
+  )
+
+  if (provider) {
+    console.log(`\nInitializing LLM backend: ${provider}`)
+    const backend = await resolveBackend({ provider, model: args.model })
+    llmAgent = backend.agent
+    stopBackend = backend.stop
+    console.log(`  Ready: ${backend.label}`)
   }
 
   // Select experiments to run
@@ -174,7 +181,7 @@ async function main() {
       results.push({ key, name: exp.name, summary: metrics.summary(), metrics })
     }
   } finally {
-    await llmServer?.stop()
+    await stopBackend?.()
   }
 
   // Output
