@@ -80,18 +80,23 @@ export default function App() {
   useEffect(() => {
     if (IS_DEMO) return
     fetch('/health')
-      .then((res) => {
-        if (res.status === 401) {
-          if (!getApiKey()) setShowApiKeyModal(true)
-        } else if (!res.ok) {
-          setServerError(`Server returned ${res.status}`)
-        } else {
-          setServerError(null)
-        }
+      .then(async (res) => {
+        if (!res.ok) { setServerError(`Server returned ${res.status}`); return }
+        const body = await res.json() as { requiresAuth?: boolean }
+        setServerError(null)
+        if (body.requiresAuth && !getApiKey()) setShowApiKeyModal(true)
       })
       .catch(() => {
         setServerError('Cannot connect to AKP server at localhost:3000. Make sure the backend is running.')
       })
+  }, [])
+
+  // Show auth modal whenever any RPC call returns 401
+  useEffect(() => {
+    if (IS_DEMO) return
+    function handleUnauthorized() { setShowApiKeyModal(true) }
+    window.addEventListener('akp:unauthorized', handleUnauthorized)
+    return () => window.removeEventListener('akp:unauthorized', handleUnauthorized)
   }, [])
 
   function handleApiKeyModalClose() {

@@ -540,7 +540,7 @@ export function createRpcServer(options: RpcServerOptions) {
 
   // Health + readiness
   app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() })
+    res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString(), requiresAuth: !!apiKey })
   })
 
   app.get('/ready', (_req, res) => {

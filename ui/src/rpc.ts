@@ -49,6 +49,7 @@ export async function rpc<T>(method: string, params?: unknown): Promise<T> {
   })
 
   if (res.status === 401) {
+    window.dispatchEvent(new CustomEvent('akp:unauthorized'))
     const err = new Error('Unauthorized') as Error & { status: number }
     err.status = 401
     throw err
