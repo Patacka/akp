@@ -113,7 +113,12 @@ export default function KUDetail({ kuId }: KUDetailProps) {
     )
   }
 
-  if (!ku) return null
+  if (!ku) return (
+    <div>
+      <a className="back-link" onClick={() => { window.location.hash = '#/knowledge' }}>← Back to Knowledge Base</a>
+      <div className="error-banner"><span className="error-banner-icon">!</span><span>Knowledge unit not found.</span></div>
+    </div>
+  )
 
   const title = ku.meta.title['en'] ?? Object.values(ku.meta.title)[0] ?? ku.id
   const summary = ku.meta.summary ?? ku.narrative?.summary

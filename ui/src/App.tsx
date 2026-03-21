@@ -7,10 +7,11 @@ import KUDetail from './pages/KUDetail'
 import KUCreate from './pages/KUCreate'
 import Governance from './pages/Governance'
 import Reputation from './pages/Reputation'
+import GraphView from './pages/GraphView'
 import { getApiKey, IS_DEMO } from './rpc'
 
 interface ParsedRoute {
-  page: 'home' | 'knowledge' | 'ku-detail' | 'create' | 'governance' | 'reputation'
+  page: 'home' | 'knowledge' | 'ku-detail' | 'create' | 'governance' | 'reputation' | 'graph'
   params: Record<string, string>
 }
 
@@ -42,6 +43,10 @@ function parseHash(hash: string): ParsedRoute {
 
   if (normalizedPath === '/reputation') {
     return { page: 'reputation', params: {} }
+  }
+
+  if (normalizedPath === '/graph') {
+    return { page: 'graph', params: {} }
   }
 
   // Fallback to home
@@ -119,6 +124,8 @@ export default function App() {
         return <Governance />
       case 'reputation':
         return <Reputation />
+      case 'graph':
+        return <GraphView />
       default:
         return <Home />
     }

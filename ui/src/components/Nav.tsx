@@ -14,6 +14,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '#/', label: 'Dashboard', icon: '⬡' },
   { href: '#/knowledge', label: 'Knowledge Base', icon: '◈' },
+  { href: '#/graph', label: 'Graph View', icon: '⬢' },
   { href: '#/create', label: 'Create KU', icon: '+' },
   { href: '#/governance', label: 'Governance', icon: '⚖' },
   { href: '#/reputation', label: 'Reputation', icon: '★' },

@@ -452,8 +452,9 @@ export function demoRpc<T>(method: string, params?: Record<string, unknown>): T 
     }
 
     case 'akp.ku.read': {
-      const ku = DEMO_KUS.find(k => k.id === (params?.id as string))
-      if (!ku) throw new Error(`KU not found: ${params?.id}`)
+      const id = (params?.kuId ?? params?.id) as string
+      const ku = DEMO_KUS.find(k => k.id === id)
+      if (!ku) throw new Error(`KU not found: ${id}`)
       return ku as unknown as T
     }
 
