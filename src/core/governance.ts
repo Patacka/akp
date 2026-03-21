@@ -426,11 +426,23 @@ export class GovernanceEngine {
       }
     }
 
-    // These params underpin Sybil resistance. Changing them via a simple
-    // parameter_change (quorum=5) is too low a bar — gate them behind rule_change.
+    // These params underpin Sybil resistance and protocol liveness.
+    // Changing them via a simple parameter_change (quorum=5, 7-day TTL) is too
+    // low a bar — gate them behind rule_change (quorum=7, 67%, 14-day TTL).
+    //
+    // graduationThreshold / proposalReputationBond — Sybil cost floor
+    // commitWindowMinutes / commitWindowMinCount    — commit-reveal timing integrity
+    // minAgeDays / minReviewCount                  — reviewer age/activity gates
+    // quorums / thresholds                         — the governance quorum itself
     const IMMUTABLE_VIA_PARAMETER_CHANGE = new Set([
       'graduationThreshold',
       'proposalReputationBond',
+      'commitWindowMinutes',
+      'commitWindowMinCount',
+      'minAgeDays',
+      'minReviewCount',
+      'quorums',
+      'thresholds',
     ])
     if (IMMUTABLE_VIA_PARAMETER_CHANGE.has(parts[0])) {
       throw new Error(

@@ -1044,14 +1044,17 @@ export class KUStore {
   async submitProposal(proposal: Proposal): Promise<boolean> {
     const validated = ProposalSchema.parse(proposal)
 
-    // Check reputation bond — proposer must be graduated (unless bond = 0 in dev mode)
+    // Fix 3: Check reputation bond against actual reputation value, not just graduated_at.
+    // Previous code only checked graduated_at, so raising proposalReputationBond via
+    // governance had no effect — any graduated DID could still propose regardless of score.
     this.ensureDid(validated.proposerDid)
     const govParams = this.getGovernanceParameters()
     if (govParams.proposalReputationBond > 0) {
       const repRow = this.db.prepare(
-        'SELECT graduated_at, blacklisted FROM did_reputation WHERE did = ?'
-      ).get(validated.proposerDid) as { graduated_at: string | null; blacklisted: number } | undefined
+        'SELECT reputation, graduated_at, blacklisted FROM did_reputation WHERE did = ?'
+      ).get(validated.proposerDid) as { reputation: number; graduated_at: string | null; blacklisted: number } | undefined
       if (!repRow || repRow.blacklisted || !repRow.graduated_at) return false
+      if (repRow.reputation < govParams.proposalReputationBond) return false
     }
 
     // Verify Ed25519 signature over canonical fields

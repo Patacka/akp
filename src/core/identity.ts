@@ -97,6 +97,26 @@ export function canonicalCommitPayload(commit: {
 }
 
 /**
+ * Canonical payload for akp.review.submit signatures.
+ * The reviewer signs this to prove they own the DID and authorise this specific review.
+ * claimIds is sorted to make the payload deterministic regardless of submission order.
+ */
+export function canonicalReviewSubmitPayload(review: {
+  kuId: string
+  claimIds: string[]
+  verdict: string
+  reviewerDid: string
+}): Uint8Array {
+  const canonical = JSON.stringify({
+    claimIds: [...review.claimIds].sort(),
+    kuId: review.kuId,
+    reviewerDid: review.reviewerDid,
+    verdict: review.verdict,
+  })
+  return new TextEncoder().encode(canonical)
+}
+
+/**
  * Compute a deterministic 32-bit seed bound to a specific reviewer DID and claim.
  * Used for seedable VerificationProcedures: seed = SHA-256(claimId + reviewerDid) → int32.
  * A Sybil cannot copy this result because changing the DID changes the seed and

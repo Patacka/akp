@@ -12,7 +12,7 @@ import type { RelationGraph } from '../core/graph.js'
 import { createKU, createProvenance, ProvenanceRecordSchema, ClaimSchema, ReviewSchema } from '../core/ku.js'
 import { runPipeline } from '../pipeline/index.js'
 import { ProposalSchema, VoteSchema } from '../core/governance.js'
-import { computeDidBoundSeed, canonicalCommitPayload, extractPublicKeyFromDid, verifyBytes } from '../core/identity.js'
+import { computeDidBoundSeed, canonicalCommitPayload, canonicalReviewSubmitPayload, extractPublicKeyFromDid, verifyBytes } from '../core/identity.js'
 import { registry, metricsStore } from './metrics.js'
 import type { EntailmentChecker } from '../pipeline/stage3-rav.js'
 
@@ -65,7 +65,11 @@ const SubmitReviewParams = z.object({
   reviewerDid: z.string().min(1),
   reviewerType: z.enum(['agent', 'human']).optional(),
   weight: z.number().min(0).max(1).optional(),
-  signature: z.string().optional(),
+  /**
+   * Ed25519 signature (hex, 128 chars) over canonicalReviewSubmitPayload({kuId,claimIds,verdict,reviewerDid}).
+   * Required — proves the caller owns the DID key and prevents reputation farming for arbitrary DIDs.
+   */
+  signature: z.string().length(128),
   comment: z.string().optional(),
   /** Required when reviewing seedable claims: must equal computeDidBoundSeed(claimId, reviewerDid) */
   seed: z.number().int().optional(),
@@ -266,6 +270,26 @@ export function createRpcServer(options: RpcServerOptions) {
       const ku = store.read(p.kuId)
       if (!ku) throw new Error(`KU not found: ${p.kuId}`)
 
+      // Fix 1: Verify the reviewer's Ed25519 signature over the canonical payload.
+      // This proves the caller owns the DID key — without it anyone can farm/slash
+      // reputation for arbitrary DIDs just by supplying a different reviewerDid.
+      let sigValid = false
+      try {
+        const pubKeyHex = extractPublicKeyFromDid(p.reviewerDid)
+        sigValid = await verifyBytes(
+          canonicalReviewSubmitPayload({ kuId: p.kuId, claimIds: p.claimIds, verdict: p.verdict, reviewerDid: p.reviewerDid }),
+          p.signature,
+          pubKeyHex
+        )
+      } catch { /* invalid DID format — sigValid stays false */ }
+      if (!sigValid) throw { code: -32000, message: 'Review rejected — invalid reviewer signature' }
+
+      // Fix 2: Per-(DID, KU) dedup — one review per reviewer per KU.
+      // Without this, repeated submissions increment review_count and reputation
+      // indefinitely, making graduation trivially scriptable.
+      const alreadyReviewed = ku.reviews.some(r => r.reviewerDid === p.reviewerDid)
+      if (alreadyReviewed) throw { code: -32000, message: 'Review rejected — this DID already reviewed this KU' }
+
       // Register DID and apply effective weight (0 until graduated)
       store.ensureDid(p.reviewerDid)
       const effectiveWeight = store.getEffectiveWeight(p.reviewerDid)
@@ -458,12 +482,45 @@ export function createRpcServer(options: RpcServerOptions) {
     next()
   }
 
+  // General read limiter — generous for multi-agent simulation traffic
   const limiter = rateLimit({
     windowMs: 60_000,
-    max: options.rateLimit ?? 60,
+    max: options.rateLimit ?? 120,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please slow down' },
+  })
+
+  // Tighter per-IP limiter for reputation-affecting write methods.
+  // Keyed on IP + method so each method gets its own bucket rather than
+  // sharing the general budget — prevents one agent from crowding out others.
+  const WRITE_RATE_LIMITS: Record<string, number> = {
+    'akp.review.submit':    20,   // 20 signed reviews / min / IP
+    'akp.review.commit':    20,
+    'akp.review.reveal':    20,
+    'akp.governance.propose': 5,  // 5 proposals / min / IP
+    'akp.governance.vote':  10,
+    'akp.ku.create':        30,
+  }
+  const writeLimiter = rateLimit({
+    windowMs: 60_000,
+    max: 20,  // fallback; overridden per-method via keyGenerator
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+      const ip = req.ip ?? 'unknown'
+      const method = (req.body as { method?: string } | undefined)?.method ?? ''
+      return `${ip}:${method}`
+    },
+    limit: (req) => {
+      const method = (req.body as { method?: string } | undefined)?.method ?? ''
+      return WRITE_RATE_LIMITS[method] ?? 20
+    },
+    message: { error: 'Write rate limit exceeded for this method — slow down' },
+    skip: (req) => {
+      const method = (req.body as { method?: string } | undefined)?.method ?? ''
+      return !(method in WRITE_RATE_LIMITS)
+    },
   })
 
   const server = new jayson.Server(methods)
@@ -474,8 +531,8 @@ export function createRpcServer(options: RpcServerOptions) {
     res.setHeader('X-Request-Id', id)
     next()
   })
-  app.use('/rpc', requireApiKey, limiter, server.middleware())
-  app.use('/mcp', requireApiKey, limiter)  // MCP HTTP shares the same rate limit budget
+  app.use('/rpc', requireApiKey, limiter, writeLimiter, server.middleware())
+  app.use('/mcp', requireApiKey, limiter)  // MCP HTTP shares the general read budget
 
   // A2A Agent Card — lets any A2A-compatible orchestrator discover AKP's capabilities
   app.get('/.well-known/agent.json', (_req, res) => {
