@@ -1,0 +1,27 @@
+# Render.com deploy config
+# Click "New Web Service" in Render dashboard, connect this repo.
+# Or use the "Deploy to Render" button from README.
+# Note: persistent disk requires Starter plan ($7/mo).
+
+services:
+  - type: web
+    name: akp
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter        # free tier has no persistent disk
+    healthCheckPath: /health
+    envVars:
+      - key: AKP_API_KEY
+        generateValue: true   # auto-generated secret
+      - key: PORT
+        value: 10000           # Render assigns 10000 internally
+      - key: AKP_DB
+        value: /data/akp.db
+      - key: AKP_LOG
+        value: /data/deltas.ndjson
+      - key: LOG_LEVEL
+        value: info
+    disk:
+      name: akp-data
+      mountPath: /data
+      sizeGB: 1

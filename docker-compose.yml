@@ -1,0 +1,77 @@
+version: '3.9'
+
+# AKP 3-node cluster for local testing / staging
+# All nodes share the same Docker network and discover each other via DNS.
+#
+# Usage:
+#   docker compose up --build
+#   docker compose down -v   # remove volumes too
+
+x-akp-common: &akp-common
+  build: .
+  restart: unless-stopped
+  environment:
+    LOG_LEVEL: info
+    PORT: 3000
+    AKP_API_KEY: ${AKP_API_KEY:-changeme}
+    JAN_BASE_URL: ${JAN_BASE_URL:-}
+    JAN_API_KEY: ${JAN_API_KEY:-12345}
+  networks:
+    - akp
+
+services:
+  node1:
+    <<: *akp-common
+    hostname: node1
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    volumes:
+      - node1-data:/data
+    environment:
+      <<: *akp-common
+      AKP_DB: /data/akp.db
+      AKP_LOG: /data/deltas.ndjson
+      AKP_PEERS: ws://node2:3001,ws://node3:3001
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  node2:
+    <<: *akp-common
+    hostname: node2
+    ports:
+      - "3002:3000"
+      - "3003:3001"
+    volumes:
+      - node2-data:/data
+    environment:
+      <<: *akp-common
+      AKP_DB: /data/akp.db
+      AKP_LOG: /data/deltas.ndjson
+      AKP_PEERS: ws://node1:3001,ws://node3:3001
+
+  node3:
+    <<: *akp-common
+    hostname: node3
+    ports:
+      - "3004:3000"
+      - "3005:3001"
+    volumes:
+      - node3-data:/data
+    environment:
+      <<: *akp-common
+      AKP_DB: /data/akp.db
+      AKP_LOG: /data/deltas.ndjson
+      AKP_PEERS: ws://node1:3001,ws://node2:3001
+
+volumes:
+  node1-data:
+  node2-data:
+  node3-data:
+
+networks:
+  akp:
+    driver: bridge

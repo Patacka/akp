@@ -1,0 +1,47 @@
+# Fly.io deploy config
+# Usage: fly launch   (first time — creates app + volume)
+#        fly deploy   (subsequent deploys)
+#        fly secrets set AKP_API_KEY=your-secret
+
+app = "akp"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT       = "8080"
+  LOG_LEVEL  = "info"
+  AKP_DB     = "/data/akp.db"
+  AKP_LOG    = "/data/deltas.ndjson"
+
+[http_service]
+  internal_port        = 8080
+  force_https          = true
+  auto_stop_machines   = "stop"
+  auto_start_machines  = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type       = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[[mounts]]
+  source      = "akp_data"
+  destination = "/data"
+
+[checks]
+  [checks.health]
+    grace_period = "15s"
+    interval     = "30s"
+    method       = "GET"
+    path         = "/health"
+    port         = 8080
+    timeout      = "5s"
+    type         = "http"

@@ -1,0 +1,365 @@
+{
+  "model": "Mistral-7B-Instruct-v0_3_IQ4_XS",
+  "runAt": "2026-03-18T09:53:28.605Z",
+  "summary": {
+    "total": 20,
+    "withAnyClaim": 16,
+    "withVerifiable": 16,
+    "errors": 0,
+    "avgLlmMs": 2040,
+    "totalProcedures": 20,
+    "validProcedures": 20,
+    "executedProcedures": 2,
+    "validOutputProcedures": 0,
+    "reproducedProcedures": 0,
+    "pctWithVerifiable": 0.8,
+    "pctValidProcedures": 1,
+    "pctReproduced": 0
+  },
+  "questions": [
+    {
+      "question": "What is the boiling point of water at sea level in Celsius?",
+      "claims": 1,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 0,
+      "procedures": [
+        {
+          "claimSubject": "Boiling point of water",
+          "claimPredicate": "temperature",
+          "runtime": "python@3.11",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        }
+      ],
+      "llmMs": 1725
+    },
+    {
+      "question": "What is the gravitational acceleration at Earth's surface in m/s²?",
+      "claims": 1,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 0,
+      "procedures": [
+        {
+          "claimSubject": "Gravitational acceleration at Earth's surface",
+          "claimPredicate": "value",
+          "runtime": "python@3.11",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        }
+      ],
+      "llmMs": 1428
+    },
+    {
+      "question": "What is the speed of light in a vacuum in metres per second?",
+      "claims": 0,
+      "verifiableClaims": 0,
+      "draftOnlyClaims": 0,
+      "procedures": [],
+      "llmMs": 1599
+    },
+    {
+      "question": "What is the atomic number of carbon?",
+      "claims": 0,
+      "verifiableClaims": 0,
+      "draftOnlyClaims": 0,
+      "procedures": [],
+      "llmMs": 1641
+    },
+    {
+      "question": "What is the melting point of ice at standard atmospheric pressure?",
+      "claims": 1,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 0,
+      "procedures": [
+        {
+          "claimSubject": "Melting point of ice",
+          "claimPredicate": "temperature",
+          "runtime": "python@3.11",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        }
+      ],
+      "llmMs": 1947
+    },
+    {
+      "question": "How many bits are in a byte?",
+      "claims": 1,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 0,
+      "procedures": [
+        {
+          "claimSubject": "Byte",
+          "claimPredicate": "number of bits",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": false,
+          "exitCode": 1,
+          "execMs": 53,
+          "stdout": "",
+          "stderr": "file:///C:/Users/Patacka/AppData/Local/Temp/akp-rep-evr70c/index.mjs:4\r\nmodule.exports = {\r\n^\r\n\r\nReferenceError: module is not defined in ES module scope\r\n    at file:///C:/Users/Patacka/AppData/Local"
+        }
+      ],
+      "llmMs": 1566
+    },
+    {
+      "question": "What is pi to 5 decimal places?",
+      "claims": 0,
+      "verifiableClaims": 0,
+      "draftOnlyClaims": 0,
+      "procedures": [],
+      "llmMs": 1455
+    },
+    {
+      "question": "What is the molecular weight of CO2 in g/mol?",
+      "claims": 1,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 0,
+      "procedures": [
+        {
+          "claimSubject": "Carbon dioxide",
+          "claimPredicate": "molecular weight",
+          "runtime": "python@3.11",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        }
+      ],
+      "llmMs": 1640
+    },
+    {
+      "question": "What is the half-life of Carbon-14 in years?",
+      "claims": 1,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 0,
+      "procedures": [
+        {
+          "claimSubject": "Carbon-14",
+          "claimPredicate": "half-life",
+          "runtime": "python@3.11",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        }
+      ],
+      "llmMs": 1402
+    },
+    {
+      "question": "How many chromosomes does a human diploid cell contain?",
+      "claims": 0,
+      "verifiableClaims": 0,
+      "draftOnlyClaims": 0,
+      "procedures": [],
+      "llmMs": 1323
+    },
+    {
+      "question": "Who discovered penicillin and in what year?",
+      "claims": 2,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 1,
+      "procedures": [
+        {
+          "claimSubject": "Alexander Fleming's discovery of Penicillin",
+          "claimPredicate": "occurred in",
+          "runtime": "mock",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        }
+      ],
+      "llmMs": 1889
+    },
+    {
+      "question": "What organism causes malaria?",
+      "claims": 1,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 0,
+      "procedures": [
+        {
+          "claimSubject": "Plasmodium",
+          "claimPredicate": "species",
+          "runtime": "mock",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        }
+      ],
+      "llmMs": 2015
+    },
+    {
+      "question": "What is the chemical formula of table salt?",
+      "claims": 1,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 0,
+      "procedures": [
+        {
+          "claimSubject": "Table Salt",
+          "claimPredicate": "Chemical Formula",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": false,
+          "exitCode": 0,
+          "execMs": 52,
+          "stdout": "NaCl\n",
+          "stderr": ""
+        }
+      ],
+      "llmMs": 1238
+    },
+    {
+      "question": "How many planets are in the solar system?",
+      "claims": 1,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 0,
+      "procedures": [
+        {
+          "claimSubject": "Solar System",
+          "claimPredicate": "has number of planets",
+          "runtime": "python@3.11",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        }
+      ],
+      "llmMs": 1305
+    },
+    {
+      "question": "What type of bond holds water molecules together?",
+      "claims": 3,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 2,
+      "procedures": [
+        {
+          "claimSubject": "Hydrogen Bond Length",
+          "claimPredicate": "Average Length",
+          "runtime": "python@3.11",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        }
+      ],
+      "llmMs": 2448
+    },
+    {
+      "question": "Do humans use only 10% of their brain?",
+      "claims": 5,
+      "verifiableClaims": 3,
+      "draftOnlyClaims": 2,
+      "procedures": [
+        {
+          "claimSubject": "Human brain",
+          "claimPredicate": "usage percentage",
+          "runtime": "python@3.11",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        },
+        {
+          "claimSubject": "Brain cells",
+          "claimPredicate": "number",
+          "runtime": "mock",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        },
+        {
+          "claimSubject": "Brain weight",
+          "claimPredicate": "percentage of body weight",
+          "runtime": "mock",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        }
+      ],
+      "llmMs": 4479
+    },
+    {
+      "question": "Is glass a slow-moving liquid at room temperature?",
+      "claims": 5,
+      "verifiableClaims": 3,
+      "draftOnlyClaims": 2,
+      "procedures": [
+        {
+          "claimSubject": "Glass",
+          "claimPredicate": "Thermal state",
+          "runtime": "python@3.11",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        },
+        {
+          "claimSubject": "Glass",
+          "claimPredicate": "Temperature",
+          "runtime": "python@3.11",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        },
+        {
+          "claimSubject": "Glass",
+          "claimPredicate": "Temperature",
+          "runtime": "python@3.11",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        }
+      ],
+      "llmMs": 5324
+    },
+    {
+      "question": "Did Einstein fail mathematics in school?",
+      "claims": 1,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 0,
+      "procedures": [
+        {
+          "claimSubject": "Albert Einstein",
+          "claimPredicate": "performed in mathematics",
+          "runtime": "mock",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        }
+      ],
+      "llmMs": 1572
+    },
+    {
+      "question": "Does lightning never strike the same place twice?",
+      "claims": 1,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 0,
+      "procedures": [
+        {
+          "claimSubject": "Lightning",
+          "claimPredicate": "frequency of striking the same location",
+          "runtime": "python@3.11",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        }
+      ],
+      "llmMs": 3116
+    },
+    {
+      "question": "Is the Great Wall of China visible from space with the naked eye?",
+      "claims": 1,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 0,
+      "procedures": [
+        {
+          "claimSubject": "Great Wall of China",
+          "claimPredicate": "visibility",
+          "runtime": "mock",
+          "validationPassed": true,
+          "executed": false,
+          "outputValid": false
+        }
+      ],
+      "llmMs": 1678
+    }
+  ]
+}

@@ -1,0 +1,389 @@
+{
+  "model": "Mistral-7B-Instruct-v0_3_IQ4_XS",
+  "runAt": "2026-03-18T10:04:42.106Z",
+  "summary": {
+    "total": 20,
+    "withAnyClaim": 20,
+    "withVerifiable": 14,
+    "errors": 0,
+    "avgLlmMs": 2046,
+    "totalProcedures": 14,
+    "validProcedures": 14,
+    "executedProcedures": 14,
+    "validOutputProcedures": 14,
+    "reproducedProcedures": 13,
+    "pctWithVerifiable": 0.7,
+    "pctValidProcedures": 1,
+    "pctReproduced": 0.9285714285714286
+  },
+  "questions": [
+    {
+      "question": "What is the boiling point of water at sea level in Celsius?",
+      "claims": 2,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 1,
+      "procedures": [
+        {
+          "claimSubject": "water",
+          "claimPredicate": "boilingPointCelsiusAtSeaLevel",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": true,
+          "exitCode": 0,
+          "execMs": 60,
+          "stdout": "{\"verdict\":\"reproduced\",\"result\":100,\"deviationPct\":0}\n",
+          "stderr": "",
+          "verdict": "reproduced",
+          "deviationPct": 0
+        }
+      ],
+      "llmMs": 2252
+    },
+    {
+      "question": "What is the gravitational acceleration at Earth's surface in m/s²?",
+      "claims": 2,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 1,
+      "procedures": [
+        {
+          "claimSubject": "gravitational acceleration",
+          "claimPredicate": "valueAtEarthSurface",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": true,
+          "exitCode": 0,
+          "execMs": 57,
+          "stdout": "{\"verdict\":\"reproduced\",\"result\":9.81,\"deviationPct\":0}\n",
+          "stderr": "",
+          "verdict": "reproduced",
+          "deviationPct": 0
+        }
+      ],
+      "llmMs": 2111
+    },
+    {
+      "question": "What is the speed of light in a vacuum in metres per second?",
+      "claims": 2,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 1,
+      "procedures": [
+        {
+          "claimSubject": "speed of light in a vacuum",
+          "claimPredicate": "valueInMetersPerSecond",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": true,
+          "exitCode": 0,
+          "execMs": 52,
+          "stdout": "{\"verdict\":\"reproduced\",\"result\":299792458,\"deviationPct\":0}\n",
+          "stderr": "",
+          "verdict": "reproduced",
+          "deviationPct": 0
+        }
+      ],
+      "llmMs": 2239
+    },
+    {
+      "question": "What is the atomic number of carbon?",
+      "claims": 1,
+      "verifiableClaims": 0,
+      "draftOnlyClaims": 1,
+      "procedures": [],
+      "llmMs": 768
+    },
+    {
+      "question": "What is the melting point of ice at standard atmospheric pressure?",
+      "claims": 2,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 1,
+      "procedures": [
+        {
+          "claimSubject": "ice",
+          "claimPredicate": "meltingPointCelsius",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": true,
+          "exitCode": 0,
+          "execMs": 55,
+          "stdout": "{\"verdict\":\"reproduced\",\"result\":0,\"deviationPct\":0}\n",
+          "stderr": "",
+          "verdict": "reproduced",
+          "deviationPct": 0
+        }
+      ],
+      "llmMs": 2007
+    },
+    {
+      "question": "How many bits are in a byte?",
+      "claims": 1,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 0,
+      "procedures": [
+        {
+          "claimSubject": "byte",
+          "claimPredicate": "numberOfBits",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": true,
+          "exitCode": 0,
+          "execMs": 58,
+          "stdout": "{\"verdict\":\"reproduced\",\"result\":8,\"deviationPct\":0}\n",
+          "stderr": "",
+          "verdict": "reproduced",
+          "deviationPct": 0
+        }
+      ],
+      "llmMs": 1407
+    },
+    {
+      "question": "What is pi to 5 decimal places?",
+      "claims": 1,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 0,
+      "procedures": [
+        {
+          "claimSubject": "pi",
+          "claimPredicate": "value",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": true,
+          "exitCode": 0,
+          "execMs": 54,
+          "stdout": "{\"verdict\":\"reproduced\",\"result\":\"3.14159\",\"deviationPct\":0}\n",
+          "stderr": "",
+          "verdict": "reproduced",
+          "deviationPct": 0
+        }
+      ],
+      "llmMs": 1575
+    },
+    {
+      "question": "What is the molecular weight of CO2 in g/mol?",
+      "claims": 2,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 1,
+      "procedures": [
+        {
+          "claimSubject": "CO2",
+          "claimPredicate": "molecularWeight",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": true,
+          "exitCode": 0,
+          "execMs": 56,
+          "stdout": "{\"verdict\":\"reproduced\",\"result\":44.01,\"deviationPct\":0}\n",
+          "stderr": "",
+          "verdict": "reproduced",
+          "deviationPct": 0
+        }
+      ],
+      "llmMs": 2102
+    },
+    {
+      "question": "What is the half-life of Carbon-14 in years?",
+      "claims": 2,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 1,
+      "procedures": [
+        {
+          "claimSubject": "Carbon-14",
+          "claimPredicate": "halfLifeYears",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": true,
+          "exitCode": 0,
+          "execMs": 57,
+          "stdout": "{\"verdict\":\"reproduced\",\"result\":5730,\"deviationPct\":0}\n",
+          "stderr": "",
+          "verdict": "reproduced",
+          "deviationPct": 0
+        }
+      ],
+      "llmMs": 2098
+    },
+    {
+      "question": "How many chromosomes does a human diploid cell contain?",
+      "claims": 4,
+      "verifiableClaims": 0,
+      "draftOnlyClaims": 4,
+      "procedures": [],
+      "llmMs": 2458
+    },
+    {
+      "question": "Who discovered penicillin and in what year?",
+      "claims": 2,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 1,
+      "procedures": [
+        {
+          "claimSubject": "year",
+          "claimPredicate": "discoveryYear",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": true,
+          "exitCode": 0,
+          "execMs": 58,
+          "stdout": "{\"verdict\":\"reproduced\",\"result\":1928,\"deviationPct\":0}\n",
+          "stderr": "",
+          "verdict": "reproduced",
+          "deviationPct": 0
+        }
+      ],
+      "llmMs": 2016
+    },
+    {
+      "question": "What organism causes malaria?",
+      "claims": 1,
+      "verifiableClaims": 0,
+      "draftOnlyClaims": 1,
+      "procedures": [],
+      "llmMs": 879
+    },
+    {
+      "question": "What is the chemical formula of table salt?",
+      "claims": 1,
+      "verifiableClaims": 0,
+      "draftOnlyClaims": 1,
+      "procedures": [],
+      "llmMs": 844
+    },
+    {
+      "question": "How many planets are in the solar system?",
+      "claims": 5,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 4,
+      "procedures": [
+        {
+          "claimSubject": "solar system",
+          "claimPredicate": "numberOfPlanets",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": true,
+          "exitCode": 0,
+          "execMs": 58,
+          "stdout": "{\"verdict\":\"reproduced\",\"result\":8,\"deviationPct\":0}\n",
+          "stderr": "",
+          "verdict": "reproduced",
+          "deviationPct": 0
+        }
+      ],
+      "llmMs": 5515
+    },
+    {
+      "question": "What type of bond holds water molecules together?",
+      "claims": 2,
+      "verifiableClaims": 0,
+      "draftOnlyClaims": 2,
+      "procedures": [],
+      "llmMs": 1551
+    },
+    {
+      "question": "Do humans use only 10% of their brain?",
+      "claims": 2,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 1,
+      "procedures": [
+        {
+          "claimSubject": "humans",
+          "claimPredicate": "brainUsagePercentage",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": true,
+          "exitCode": 0,
+          "execMs": 56,
+          "stdout": "{\"verdict\":\"failed\",\"result\":null,\"deviationPct\":100}\n",
+          "stderr": "",
+          "verdict": "failed",
+          "deviationPct": 100
+        }
+      ],
+      "llmMs": 1946
+    },
+    {
+      "question": "Is glass a slow-moving liquid at room temperature?",
+      "claims": 3,
+      "verifiableClaims": 0,
+      "draftOnlyClaims": 3,
+      "procedures": [],
+      "llmMs": 1956
+    },
+    {
+      "question": "Did Einstein fail mathematics in school?",
+      "claims": 4,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 3,
+      "procedures": [
+        {
+          "claimSubject": "Albert Einstein's school records",
+          "claimPredicate": "showMathematicsFailure",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": true,
+          "exitCode": 0,
+          "execMs": 56,
+          "stdout": "{\"verdict\":\"reproduced\",\"result\":false}\n",
+          "stderr": "",
+          "verdict": "reproduced"
+        }
+      ],
+      "llmMs": 2990
+    },
+    {
+      "question": "Does lightning never strike the same place twice?",
+      "claims": 2,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 1,
+      "procedures": [
+        {
+          "claimSubject": "lightning",
+          "claimPredicate": "probabilityOfStrikingSamePlaceTwice",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": true,
+          "exitCode": 0,
+          "execMs": 56,
+          "stdout": "{\"verdict\":\"reproduced\",\"result\":0.00001,\"deviationPct\":0}\n",
+          "stderr": "",
+          "verdict": "reproduced",
+          "deviationPct": 0
+        }
+      ],
+      "llmMs": 2110
+    },
+    {
+      "question": "Is the Great Wall of China visible from space with the naked eye?",
+      "claims": 2,
+      "verifiableClaims": 1,
+      "draftOnlyClaims": 1,
+      "procedures": [
+        {
+          "claimSubject": "Great Wall of China",
+          "claimPredicate": "visibilityFromSpace",
+          "runtime": "node@22",
+          "validationPassed": true,
+          "executed": true,
+          "outputValid": true,
+          "exitCode": 0,
+          "execMs": 56,
+          "stdout": "{\"verdict\":\"reproduced\",\"result\":\"not visible with the naked eye\"}\n",
+          "stderr": "",
+          "verdict": "reproduced"
+        }
+      ],
+      "llmMs": 2089
+    }
+  ]
+}

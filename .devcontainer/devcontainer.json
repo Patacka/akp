@@ -1,0 +1,19 @@
+{
+  "name": "AKP Dev",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "postCreateCommand": "npm run setup",
+  "forwardPorts": [3000, 3001],
+  "portsAttributes": {
+    "3000": { "label": "AKP HTTP / UI", "onAutoForward": "openBrowser" },
+    "3001": { "label": "AKP WebSocket sync" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next"
+      ]
+    }
+  }
+}

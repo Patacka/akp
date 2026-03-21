@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+ui/node_modules/
+
+# Build output
+dist/
+dist-ui/
+ui/dist/
+
+# Environment — never commit secrets
+.env
+.env.local
+
+# Runtime data
+data/
+*.db
+*.db-shm
+*.db-wal
+*.ndjson
+
+# Logs
+*.log
+pino-*.log
+
+# Identity (generated per-node, not shared)
+~/.akp/
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.fls
+paper/*.fdb_latexmk
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+*.swp

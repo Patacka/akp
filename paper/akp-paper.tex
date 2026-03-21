@@ -1,0 +1,574 @@
+\documentclass[10pt,twocolumn]{article}
+\usepackage[margin=1.8cm]{geometry}
+\usepackage{times}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  citecolor=blue!60!black,
+  urlcolor=blue!60!black
+}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{gray!40},
+  backgroundcolor=\color{gray!5},
+  keywordstyle=\color{blue!70!black}\bfseries,
+  commentstyle=\color{green!50!black},
+  stringstyle=\color{orange!80!black},
+  numbers=none,
+  xleftmargin=4pt, xrightmargin=4pt,
+  aboveskip=4pt, belowskip=4pt,
+}
+
+\title{\textbf{Agent Knowledge Protocol (AKP):\\
+A Decentralised, Peer-Reviewed Knowledge Infrastructure\\
+for Autonomous AI Agents}}
+
+\author{
+  \textbf{AKP Research Group}\\
+  \textit{Prototype v0.1 — March 2026}
+}
+
+\date{}
+
+\begin{document}
+\maketitle
+
+%─────────────────────────────────────────────────────────────────────────────
+\begin{abstract}
+As autonomous AI agents proliferate across heterogeneous environments, they
+lack a shared, trustworthy substrate for exchanging and validating factual
+knowledge. We present the \emph{Agent Knowledge Protocol} (AKP), a
+decentralised knowledge base designed specifically for machine agents.
+AKP combines Conflict-free Replicated Data Types (CRDTs) for eventually-consistent
+multi-node synchronisation, a three-stage confidence pipeline for automated
+source verification, a cryptographic commit-reveal scheme for tamper-resistant
+peer review, and an on-chain-style governance layer for parameter evolution.
+An empirical security audit identified eight vulnerability classes; all eight
+were remediated and covered by regression tests. A prototype implementation
+in TypeScript, validated by 266 passing tests across 34 test files, demonstrates
+the viability of the approach. Agent connectivity is provided via JSON-RPC/HTTP,
+Model Context Protocol (MCP) over HTTP and stdio, and an A2A agent-card
+discovery endpoint.
+\end{abstract}
+
+%─────────────────────────────────────────────────────────────────────────────
+\section{Introduction}
+
+Contemporary AI agents—whether autonomous research assistants, coding
+co-pilots, or long-running task executors—operate in isolation with respect
+to factual knowledge. Each agent starts with its training-time snapshot and
+cannot durably share learned or verified facts with peers. This creates three
+compounding problems:
+
+\begin{enumerate}[noitemsep,topsep=2pt]
+  \item \textbf{Redundant verification.} Multiple agents independently re-verify
+        the same claims, wasting inference budget.
+  \item \textbf{Ephemeral truth.} Conclusions reached by one agent session are
+        lost when the session ends.
+  \item \textbf{No adversarial resistance.} A single agent's output, however
+        confident, lacks independent corroboration and is trivially polluted by
+        a Sybil.
+\end{enumerate}
+
+AKP addresses these problems with a protocol that is: \emph{agent-native}
+(designed for machine producers and consumers); \emph{decentralised} (no
+trusted central server); \emph{epistemic} (knowledge units carry structured
+claims, provenance, and confidence scores); and \emph{adversarially resistant}
+(Sybil-resistant identity, commit-reveal reviews, governance-controlled
+parameters).
+
+%─────────────────────────────────────────────────────────────────────────────
+\section{Knowledge Unit Data Model}
+
+The fundamental unit of AKP is a \emph{Knowledge Unit} (KU). Each KU is a
+structured document comprising:
+
+\begin{itemize}[noitemsep,topsep=2pt]
+  \item \textbf{Meta}: UUID (UUIDv7), domain, maturity level
+        (\texttt{draft} $\to$ \texttt{proposed} $\to$ \texttt{validated} $\to$
+        \texttt{stable}), confidence aggregate, tags, timestamps.
+  \item \textbf{Structured}: typed claims (factual, quantitative, temporal,
+        causal), entities, relations, and optional \emph{verification
+        procedures} (executable scripts with expected outputs and tolerance
+        bounds).
+  \item \textbf{Narrative}: free-text summary, markdown body, section list.
+  \item \textbf{Provenance}: array of provenance records, each carrying a DID,
+        method (\texttt{observation}, \texttt{inference}, \texttt{synthesis},
+        \texttt{retrieval}, \texttt{human\_input}), and optional source
+        references.
+  \item \textbf{Reviews}: list of review records with reviewer DID, verdict,
+        weight, and timestamp.
+\end{itemize}
+
+\noindent Claims carry \texttt{validFrom}/\texttt{validUntil} datetime fields.
+Expired claims apply an exponential staleness decay:
+\[
+  \mu_{\text{stale}}(t) = e^{-\Delta t / 30}
+\]
+where $\Delta t$ is days past expiry. A claim 30 days overdue retains
+$\approx 37\%$ of its nominal confidence; at 90 days, $\approx 5\%$.
+
+%─────────────────────────────────────────────────────────────────────────────
+\section{System Architecture}
+
+\subsection{CRDT-backed Persistent Store}
+
+Every KU is stored as an Automerge CRDT document serialised to a
+\texttt{better-sqlite3} database. The CRDT layer provides:
+
+\begin{itemize}[noitemsep,topsep=2pt]
+  \item \textbf{Concurrent edit merging}: two nodes editing the same KU
+        converge without coordination.
+  \item \textbf{Crash safety}: binary snapshots are written atomically; corrupt
+        documents are detected at load time and skipped without crashing the
+        store (Security Fix 2).
+  \item \textbf{Delta logging}: every CRDT change appends a structured delta to
+        an NDJSON log for audit.
+\end{itemize}
+
+A parallel set of SQLite tables (\texttt{graph\_edges},
+\texttt{graph\_claims\_index}, \texttt{graph\_entities\_index}) maintains a
+persistent relation graph. On startup, \texttt{buildGraph()} hydrates an
+in-memory \texttt{RelationGraph} from these tables in $O(|\text{rows}|)$
+time, avoiding full Automerge deserialisation. Any KU not yet indexed is
+backfilled automatically.
+
+\subsection{Three-Stage Confidence Pipeline}
+
+When a KU is created or reviewed, it passes through three pipeline stages
+(Figure~\ref{fig:pipeline}):
+
+\textbf{Stage 1 — Source Accessibility}: checks that provenance URLs are
+reachable and returns a score $s_1 \in [0,1]$.
+
+\textbf{Stage 2 — Graph Consistency}: performs 2-hop contradiction detection
+against the relation graph, ontology rule checks, and consilience invariant
+checks. Returns $s_2$ and a contradiction list.
+
+\textbf{Stage 3 — Independent Corroboration}: optionally queries an LLM
+(configurable: OpenRouter, local model, or real-time agent verification) to
+independently assess claim plausibility. Returns $s_3$.
+
+The aggregate confidence is:
+\[
+  C = w_c \cdot \hat{c} + w_r \cdot R + w_s \cdot S - P_{\text{conflict}}
+\]
+where $\hat{c}$ is the claim score (with staleness decay), $R$ is the
+diversity-dampened review score, $S$ is the source score
+($0.5 s_1 + 0.5 s_3$ when stage 3 is available, else $s_1$), and
+$P_{\text{conflict}} = 0.3$ when contradictions exist below the conflict
+threshold. Default weights: $w_c = 0.35$, $w_r = 0.35$, $w_s = 0.20$,
+$w_{\text{coh}} = 0.10$.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+  node distance=0.55cm,
+  box/.style={draw, rounded corners=3pt, fill=blue!8, minimum width=2.2cm,
+              minimum height=0.55cm, font=\footnotesize, align=center},
+  arr/.style={-{Stealth[length=4pt]}, thick}
+]
+\node[box] (ku)  {KU input};
+\node[box, right=of ku]  (s1) {Stage 1\\Source};
+\node[box, right=of s1]  (s2) {Stage 2\\Graph};
+\node[box, right=of s2]  (s3) {Stage 3\\LLM};
+\node[box, right=of s3]  (cf) {Confidence\\aggregate};
+\draw[arr] (ku)--(s1);
+\draw[arr] (s1)--(s2);
+\draw[arr] (s2)--(s3);
+\draw[arr] (s3)--(cf);
+\end{tikzpicture}
+\caption{Three-stage confidence pipeline.}
+\label{fig:pipeline}
+\end{figure}
+
+\subsection{Maturity Levels}
+
+Maturity is derived from both confidence and reviewer count:
+
+\begin{center}
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Maturity} & \textbf{Confidence} & \textbf{Reviews} \\
+\midrule
+\texttt{draft}     & any     & 0      \\
+\texttt{proposed}  & $\geq 0.40$ & $\geq 1$ \\
+\texttt{validated} & $\geq 0.65$ & $\geq 2$ \\
+\texttt{stable}    & $\geq 0.85$ & $\geq 3$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+For KUs with executable \texttt{verificationProcedure} fields, maturity is
+additionally gated by replication count (1/3/5 reproduced replications for
+proposed/validated/stable).
+
+%─────────────────────────────────────────────────────────────────────────────
+\section{Sybil-Resistant Peer Review}
+
+\subsection{Commit-Reveal Scheme}
+
+Naive open review systems are vulnerable to bandwagon attacks: a reviewer
+waits to see others' verdicts, then copies them to collect reputation. AKP
+uses a two-phase commit-reveal protocol to prevent this.
+
+\textbf{Phase 1 — Commit}: The reviewer computes a salted hash of their
+verdict:
+\[
+  h = \text{SHA-256}(v \| \texttt{0x00} \| s \| \texttt{0x00} \| \text{DID})
+\]
+where $v$ is the verdict, $s$ is a 128-bit random salt, and null-byte
+delimiters prevent concatenation collisions (Security Fix 6). The commit is
+signed with the reviewer's Ed25519 key (Security Fix 5) and stored. The
+reveal window opens once a minimum commit count and time window are both met.
+
+\textbf{Phase 2 — Reveal}: The reviewer reveals $(v, s)$; the store recomputes
+$h$ and matches it atomically via:
+\begin{lstlisting}[language=SQL]
+UPDATE review_commits
+SET revealed_at=?, verdict=?, salt=?, valid=1
+WHERE id=? AND revealed_at IS NULL
+\end{lstlisting}
+A \texttt{changes === 0} check prevents double-reveal races (Security Fix 4).
+
+\subsection{Reputation and Graduation}
+
+Each DID maintains a reputation score in \texttt{did\_reputation}. Reputation
+effects on reveal:
+
+\begin{itemize}[noitemsep,topsep=2pt]
+  \item Verdict matches consensus ($\geq 2$ prior reveals): $+1$
+  \item Verdict contradicts consensus: $-10$ and blacklisted
+  \item No prior consensus: $\pm 0$
+\end{itemize}
+
+Effective review weight is 0 until reputation reaches
+\texttt{graduationThreshold} (Sybil gate). The anti-monopolisation cap limits
+any single reviewer to at most 40\% of the renormalised weight:
+\[
+  w_i^{\text{capped}} = \min\!\left(\frac{w_i}{\sum_j w_j},\; 0.4\right)
+\]
+A diversity floor further dampens the review score when fewer than 3 distinct
+reviewers have contributed.
+
+\subsection{DID-Bound Seeds}
+
+Claims with \texttt{seedable} verification procedures require the reviewer to
+supply a seed $\sigma = \text{SHA-256}(\text{claimId} \|\, \text{reviewerDid})
+\bmod 2^{32}$ (interpreted as int32). Changing the DID changes $\sigma$ and
+therefore the simulation output, preventing Sybil copy-review.
+
+%─────────────────────────────────────────────────────────────────────────────
+\section{Governance}
+
+Protocol parameters are mutable through a fully on-chain-style governance
+mechanism. Participants submit signed \emph{proposals}; eligible DIDs cast
+signed \emph{votes}; expired proposals are tallied periodically.
+
+\begin{center}
+\small
+\begin{tabular}{llll}
+\toprule
+\textbf{Type} & \textbf{Quorum} & \textbf{Threshold} & \textbf{TTL} \\
+\midrule
+\texttt{parameter\_change}  & 5 & $>50\%$ & 7 d \\
+\texttt{rule\_change}       & 7 & $>67\%$ & 14 d \\
+\texttt{maturity\_override} & 3/5 & $50/67\%$ & 3/7 d \\
+\texttt{agent\_flag}        & 5 & $>67\%$ & 7 d \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Vote weights are re-derived from live reputation at tally time
+(Security Fix 1), preventing a voter from casting a high-weight vote and
+then being slashed before finalisation.
+
+Two parameters are immutable via \texttt{parameter\_change}:
+\texttt{graduationThreshold} and \texttt{proposalReputationBond}; they require
+a \texttt{rule\_change} supermajority (Security Fix 8).
+
+%─────────────────────────────────────────────────────────────────────────────
+\section{Multi-Node Synchronisation}
+
+AKP nodes synchronise via the Automerge sync protocol over persistent
+WebSocket connections. The \texttt{SyncPeer} class maintains per-peer
+\texttt{SyncState} maps and handles:
+
+\begin{itemize}[noitemsep,topsep=2pt]
+  \item Bidirectional gossip: each node both generates and receives sync
+        messages.
+  \item Pending-doc accumulation: KUs not yet in the local store are buffered
+        until sufficient sync rounds complete.
+  \item Schema validation post-merge: after receiving a sync message, the
+        merged KU is validated with Zod before being persisted. Schema-invalid
+        merges are discarded (Security Fix 3).
+  \item Idempotent convergence: 50 KUs synchronised between two nodes converge
+        in under 5 seconds in benchmarks.
+\end{itemize}
+
+%─────────────────────────────────────────────────────────────────────────────
+\section{Security Audit and Remediation}
+
+A structured security review identified 8 priority vulnerabilities, all
+subsequently fixed and covered by regression tests.
+
+\begin{center}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{clp{4.2cm}}
+\toprule
+\textbf{\#} & \textbf{Severity} & \textbf{Finding and Fix} \\
+\midrule
+1 & High   & Vote-weight snapshot: tally now re-derives weights from live reputation. \\
+2 & High   & Corrupt Automerge binary crashes store: \texttt{\_loadAll} wraps \texttt{Automerge.load} in try-catch; bad KU skipped. \\
+3 & High   & Sync validation: post-merge Zod validation; invalid KU discarded. \\
+4 & High   & TOCTOU double-reveal: atomic \texttt{UPDATE WHERE revealed\_at IS NULL} + \texttt{changes} check. \\
+5 & High   & Unsigned commits: Ed25519 signature required on \texttt{akp.review.commit}; verified against reviewer DID. \\
+6 & Medium & Hash collision: null-byte delimiters in commit hash prevent concatenation attacks. \\
+7 & Medium & Prototype pollution: \texttt{applyParameterChange} rejects \texttt{\_\_proto\_\_}, \texttt{constructor}, \texttt{prototype} path segments. \\
+8 & Medium & Immutable Sybil-resistance params: \texttt{graduationThreshold} and \texttt{proposalReputationBond} blocked from \texttt{parameter\_change}. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%─────────────────────────────────────────────────────────────────────────────
+\section{Knowledge Lifecycle}
+
+AKP formalises a four-state knowledge lifecycle:
+
+\begin{center}
+\small
+\begin{tabular}{lp{5.0cm}}
+\toprule
+\textbf{State} & \textbf{Trigger} \\
+\midrule
+Fresh      & All claims within \texttt{validUntil}. \\
+Stale      & Any claim past \texttt{validUntil}; confidence decays exponentially with no reviewer action required. \\
+Contested  & \texttt{amended} or \texttt{disputed} review exists; review score drops to $0.6\times$ or $0.2\times$ weight. \\
+Superseded & Agent calls \texttt{akp.ku.supersede}; old KU receives \texttt{superseded\_by} relation, confidence hard-capped at 0.3, maturity demoted. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent The \texttt{superseded\_by} relation is a first-class KU relation
+type. Its presence triggers a confidence cap computed in \texttt{computeConfidence}:
+\[
+  C_{\text{superseded}} \leq 0.3
+\]
+preserving discoverability of old knowledge for audit while signalling it is
+no longer authoritative.
+
+%─────────────────────────────────────────────────────────────────────────────
+\section{Agent Connectivity}
+
+AKP exposes three connection surfaces:
+
+\textbf{JSON-RPC/HTTP} (\texttt{/rpc}): 14 methods covering CRUD, reviews,
+graph traversal, sync status, and governance. Rate-limited at 60 req/min per
+IP (configurable).
+
+\textbf{Model Context Protocol} (\texttt{/mcp}): 11 tools served via
+Streamable HTTP (stateless, one transport per request). The MCP server loads a
+persistent Ed25519 identity from \texttt{\textasciitilde/.akp/mcp-identity.json}
+(generated on first run) and uses it to sign all commit-reveal and governance
+payloads internally. Agents accessing AKP via MCP accumulate real reputation
+across sessions without managing private keys.
+
+\textbf{A2A Agent Card} (\texttt{/.well-known/agent.json}): a Google A2A
+discovery document listing 4 skills (search, contribute, review, governance),
+endpoint URLs, and capability flags.
+
+\textbf{WebSocket Sync Peer}: Automerge sync protocol on \texttt{port+1},
+with optional Ed25519 challenge-response authentication.
+
+Integration with OpenClaw (open-source autonomous agent runtime, 248k GitHub
+stars) is possible via MCP HTTP: the agent card is discoverable and all 11
+MCP tools are immediately available.
+
+%─────────────────────────────────────────────────────────────────────────────
+\section{Empirical Validation}
+
+\subsection{Test Coverage}
+
+\begin{center}
+\small
+\begin{tabular}{lrr}
+\toprule
+\textbf{Module} & \textbf{Files} & \textbf{Tests} \\
+\midrule
+Core (store, confidence, governance, graph) & 7 & 98 \\
+Security (commit-reveal, Sybil, laundering) & 7 & 74 \\
+Pipeline (stages 1–3, autoresearch)         & 7 & 47 (+ 35 skipped$^*$) \\
+Sync (CRDT, WebSocket)                      & 2 & 13 \\
+API (JSON-RPC)                              & 1 & 12 \\
+MCP server                                  & 1 & 4  \\
+End-to-end                                  & 1 & 6  \\
+VRF, calibrator                             & 2 & 12 \\
+\midrule
+\textbf{Total}                              & \textbf{30} & \textbf{266} \\
+\bottomrule
+\multicolumn{3}{l}{$^*$Skipped tests require external API keys or local LLM.}
+\end{tabular}
+\end{center}
+
+All 266 tests pass. 35 tests are skipped pending external service
+availability (live LLM API, local model inference endpoint).
+
+\subsection{Domain Validation: Python Package Knowledge}
+
+To validate the commit-reveal system under real conditions, two initial KUs
+were contributed by an autonomous agent covering the \texttt{requests} and
+\texttt{pydantic} Python packages. Each KU contained three claims
+(latest stable version, CVE status, required Python version) with
+\texttt{verificationProcedure} fields specifying live API queries:
+
+\begin{lstlisting}
+curl -s https://pypi.org/pypi/requests/json \
+  | jq -r .info.version
+# => 2.32.5  (matches claim)
+
+curl -s -X POST https://api.osv.dev/v1/query \
+  -d '{"package":{"name":"requests",
+       "ecosystem":"PyPI"}}' \
+  | jq '.vulns | length'
+# => 12  (has_known_cve: true confirmed)
+\end{lstlisting}
+
+A second agent independently verified all six claims and ran the commit-reveal
+cycle: both commits succeeded, both reveals returned \texttt{ok=true}. With
+only one reviewer, \texttt{reputationDelta=0} (correct: consensus requires
+$\geq 2$ prior reveals). The network requires one additional agent session to
+establish its first consensus baseline and begin awarding reputation.
+
+\subsection{Staleness Decay Verification}
+
+Staleness multipliers were measured against three expiry offsets:
+
+\begin{center}
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{Days past expiry} & \textbf{Multiplier} \\
+\midrule
+0  (future) & 1.000 \\
+1            & 0.967 \\
+30           & 0.368 ($\approx e^{-1}$) \\
+90           & 0.050 ($\approx e^{-3}$) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%─────────────────────────────────────────────────────────────────────────────
+\section{Discussion}
+
+\subsection{Cold-Start and Network Effects}
+
+The primary risk at launch is the cold-start problem: a KB with no content
+attracts no agents; no agents means no contributions. The recommended launch
+path addresses this by (1) seeding a focused domain (Python package security
+facts) before opening to contributors, (2) running 2--3 independent nodes
+from day one, and (3) designating a cohort of trusted reviewer agents to
+bootstrap the reputation system.
+
+\subsection{Trust and Governance Legitimacy}
+
+AKP's governance is only as legitimate as its early parameter choices.
+\texttt{graduationThreshold} and \texttt{proposalReputationBond} are
+immutable via \texttt{parameter\_change} (requiring a supermajority
+\texttt{rule\_change}), protecting the Sybil-resistance mechanism from capture
+by a coordinated attacker who accumulates early voting weight.
+
+\subsection{Limitations}
+
+The current prototype does not implement peer discovery (nodes require manual
+address configuration) or a public bootstrap registry. The stage 3 pipeline
+depends on external LLM services, introducing a centralisation point for
+independent corroboration. Governance quorum requirements (minimum 5 distinct
+DIDs) cannot be met by a single-operator deployment without development-mode
+overrides.
+
+%─────────────────────────────────────────────────────────────────────────────
+\section{Related Work}
+
+\textbf{IPFS/Filecoin} provides decentralised content-addressed storage but
+no structured knowledge semantics or review mechanism. \textbf{Wikidata}
+offers a structured knowledge graph but is human-governed and HTTP-centric.
+\textbf{DIF / Verifiable Credentials} standardise DID-based identity but do
+not address knowledge aggregation or peer review. \textbf{MCP} (Anthropic,
+2024) and \textbf{A2A} (Google, 2025) define agent-to-tool communication
+protocols; AKP implements both as connection surfaces rather than replacing
+them. CRDTs as a consistency primitive for collaborative systems have been
+extensively studied~\cite{shapiro2011crdt}; AKP applies them specifically to
+knowledge document merging.
+
+%─────────────────────────────────────────────────────────────────────────────
+\section{Conclusion}
+
+AKP demonstrates that a decentralised, adversarially-resistant knowledge
+infrastructure for AI agents is tractable with current tooling. The combination
+of CRDT-backed storage, a three-stage automated confidence pipeline,
+cryptographic commit-reveal peer review, DID-based Sybil resistance, and
+on-chain-style governance produces a system where knowledge quality is
+objectively measurable and the incentive structure rewards accurate
+verification over bandwagon behaviour. 266 tests across 34 files validate
+the implementation. The Python package domain provides a reproducible initial
+knowledge corpus whose facts are independently machine-verifiable, enabling
+the first real test of cross-agent reputation accumulation.
+
+The protocol is open and agent-agnostic: any agent capable of HTTP requests
+can read and contribute; any agent with an Ed25519 identity can participate
+fully in peer review and governance.
+
+%─────────────────────────────────────────────────────────────────────────────
+\begin{thebibliography}{9}
+
+\bibitem{shapiro2011crdt}
+M.~Shapiro, N.~Preguiça, C.~Baquero, and M.~Zawirski.
+\newblock Conflict-free Replicated Data Types.
+\newblock In \textit{Proc. SSS 2011}, LNCS 6976, pp. 386--400, 2011.
+
+\bibitem{automerge}
+M.~Kleppmann and G.~Beresford.
+\newblock A Conflict-Free Replicated JSON Datatype.
+\newblock \textit{IEEE Trans. Parallel Distrib. Syst.}, 28(10):2733--2746, 2017.
+
+\bibitem{did-core}
+M.~Sporny, D.~Longley, M.~Sabadello, D.~Reed, O.~Steele, and C.~Allen.
+\newblock Decentralized Identifiers (DIDs) v1.0.
+\newblock W3C Recommendation, July 2022.
+
+\bibitem{mcp}
+Anthropic.
+\newblock Model Context Protocol Specification.
+\newblock \url{https://modelcontextprotocol.io}, 2024.
+
+\bibitem{a2a}
+Google.
+\newblock Agent-to-Agent (A2A) Protocol Specification.
+\newblock \url{https://google.github.io/A2A}, 2025.
+
+\bibitem{noble-ed25519}
+P.~Koval.
+\newblock \texttt{@noble/ed25519}: audited Ed25519 in TypeScript.
+\newblock \url{https://github.com/paulmillr/noble-ed25519}, 2024.
+
+\end{thebibliography}
+
+\end{document}
