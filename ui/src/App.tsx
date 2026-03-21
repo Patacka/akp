@@ -7,7 +7,7 @@ import KUDetail from './pages/KUDetail'
 import KUCreate from './pages/KUCreate'
 import Governance from './pages/Governance'
 import Reputation from './pages/Reputation'
-import { getApiKey } from './rpc'
+import { getApiKey, IS_DEMO } from './rpc'
 
 interface ParsedRoute {
   page: 'home' | 'knowledge' | 'ku-detail' | 'create' | 'governance' | 'reputation'
@@ -76,15 +76,13 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
-  // Check server reachability on mount
+  // Check server reachability on mount (skipped in demo mode)
   useEffect(() => {
+    if (IS_DEMO) return
     fetch('/health')
       .then((res) => {
         if (res.status === 401) {
-          // Server reachable but needs auth
-          if (!getApiKey()) {
-            setShowApiKeyModal(true)
-          }
+          if (!getApiKey()) setShowApiKeyModal(true)
         } else if (!res.ok) {
           setServerError(`Server returned ${res.status}`)
         } else {
@@ -123,8 +121,14 @@ export default function App() {
 
   return (
     <>
-      {showApiKeyModal && (
+      {!IS_DEMO && showApiKeyModal && (
         <ApiKeyModal onClose={handleApiKeyModalClose} />
+      )}
+
+      {IS_DEMO && (
+        <div style={{ background: 'var(--accent)', color: '#fff', textAlign: 'center', padding: '6px 16px', fontSize: 13 }}>
+          Read-only demo — <a href="https://github.com/Patacka/akp" style={{ color: '#fff', textDecoration: 'underline' }}>deploy your own node</a> to contribute knowledge
+        </div>
       )}
 
       <div className="layout">

@@ -5,6 +5,7 @@ ui/node_modules/
 # Build output
 dist/
 dist-ui/
+dist-demo/
 ui/dist/
 
 # Environment — never commit secrets

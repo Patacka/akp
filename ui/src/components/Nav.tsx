@@ -1,4 +1,5 @@
 import React from 'react'
+import { IS_DEMO } from '../rpc'
 
 interface NavProps {
   currentPath: string
@@ -41,7 +42,7 @@ export default function Nav({ currentPath }: NavProps) {
       </div>
       <nav className="sidebar-nav">
         <div className="nav-section-title">Navigation</div>
-        {navItems.map((item) => (
+        {navItems.filter(item => !(IS_DEMO && item.href === '#/create')).map((item) => (
           <a
             key={item.href}
             href={item.href}

@@ -1,3 +1,5 @@
+export const IS_DEMO = import.meta.env.VITE_DEMO === 'true'
+
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '/'
 
 let _apiKey = localStorage.getItem('akp_api_key') ?? ''
@@ -18,6 +20,11 @@ export function getApiKey(): string {
 let _requestId = 1
 
 export async function rpc<T>(method: string, params?: unknown): Promise<T> {
+  if (IS_DEMO) {
+    const { demoRpc } = await import('./demo-data.js')
+    return demoRpc<T>(method, params as Record<string, unknown> | undefined)
+  }
+
   const id = _requestId++
   const url = API_BASE.endsWith('/') ? `${API_BASE}rpc` : `${API_BASE}/rpc`
 

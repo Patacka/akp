@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build:demo": "tsc --noEmit && vite build --config vite.config.demo.ts",
+    "preview": "vite preview",
+    "preview:demo": "vite preview --outDir ../dist-demo"
   },
   "dependencies": {
     "react": "^18.3.0",
