@@ -51,16 +51,56 @@ export interface SyncPeerOptions {
    * is closed with code 1008 (policy violation). Default: 20.
    */
   maxMsgPerSecond?: number
+  /**
+   * Semver version of this node, announced in hello and checked against peers.
+   * Default: "0.1.0"
+   */
+  version?: string
+  /**
+   * Minimum peer version accepted. Peers advertising a lower version are
+   * rejected with close code 4426. Default: "0.1.0"
+   */
+  minVersion?: string
+  /**
+   * Network identifier. Peers on a different network are rejected with close
+   * code 4400. Use "mainnet" | "testnet" | "devnet" or any custom string.
+   * Default: "mainnet"
+   */
+  networkId?: string
 }
+
+// WebSocket close codes (4000-4999 are application-defined)
+export const WS_CLOSE_NETWORK_MISMATCH = 4400  // networkId doesn't match — wrong network
+export const WS_CLOSE_VERSION_TOO_OLD  = 4426  // peer version below our minVersion (like HTTP 426 Upgrade Required)
 
 type SyncMessage =
   | { type: 'challenge'; nonce: string }
   | { type: 'auth'; did: string; signature: string }
   | { type: 'auth_ok' }
-  | { type: 'hello'; nodeId: string; did?: string }
+  | {
+      type: 'hello'
+      nodeId: string
+      did?: string
+      /** Semver string of this node, e.g. "0.1.0" */
+      version?: string
+      /** Lowest peer version this node will accept, e.g. "0.1.0" */
+      minVersion?: string
+      /** Network identifier — nodes refuse connections from a different network */
+      networkId?: string
+    }
   | { type: 'request_ids' }
   | { type: 'ids_response'; ids: string[] }
   | { type: 'sync'; kuId: string; data: string }
+
+/** Compare two semver strings. Returns true if a >= b. Non-semver strings compare as equal. */
+function semverGte(a: string, b: string): boolean {
+  const parse = (s: string) => s.split('.').map(n => parseInt(n, 10) || 0)
+  const [aMaj, aMin, aPat] = parse(a)
+  const [bMaj, bMin, bPat] = parse(b)
+  if (aMaj !== bMaj) return aMaj > bMaj
+  if (aMin !== bMin) return aMin > bMin
+  return aPat >= bPat
+}
 
 export class SyncPeer {
   private wss?: WebSocketServer
@@ -73,6 +113,9 @@ export class SyncPeer {
   private maxMessageBytes: number
   private onKUSynced?: (ku: KnowledgeUnit) => void
   private maxMsgPerSecond: number
+  private version: string
+  private minVersion: string
+  private networkId: string
   /** Per-peer token buckets for sync flood protection */
   private peerBuckets: Map<string, { count: number; windowStart: number }> = new Map()
 
@@ -84,6 +127,9 @@ export class SyncPeer {
     this.maxMessageBytes = options.maxMessageBytes ?? 10 * 1024 * 1024
     this.onKUSynced = options.onKUSynced
     this.maxMsgPerSecond = options.maxMsgPerSecond ?? 20
+    this.version = options.version ?? '0.1.0'
+    this.minVersion = options.minVersion ?? '0.1.0'
+    this.networkId = options.networkId ?? 'mainnet'
     this.nodeId = options.identity?.did ?? Math.random().toString(36).slice(2)
   }
 
@@ -278,9 +324,20 @@ export class SyncPeer {
 
   // ── Core sync ─────────────────────────────────────────────────────────────
 
+  /** Validate a received hello message. Returns an error string or null if OK. */
+  private _checkHello(msg: Extract<SyncMessage, { type: 'hello' }>): string | null {
+    if (msg.networkId && msg.networkId !== this.networkId) {
+      return `network mismatch: peer="${msg.networkId}" local="${this.networkId}"`
+    }
+    if (msg.version && !semverGte(msg.version, this.minVersion)) {
+      return `version too old: peer="${msg.version}" minVersion="${this.minVersion}"`
+    }
+    return null
+  }
+
   /** Server-side: start syncing with an already-connected, optionally auth'd peer */
   private _beginSync(ws: WebSocket, peerId: string) {
-    this._send(ws, { type: 'hello', nodeId: this.nodeId, did: this.identity?.did })
+    this._send(ws, { type: 'hello', nodeId: this.nodeId, did: this.identity?.did, version: this.version, minVersion: this.minVersion, networkId: this.networkId })
     this._send(ws, { type: 'request_ids' })
 
     ws.on('message', (data) => {
@@ -299,7 +356,7 @@ export class SyncPeer {
 
   /** Client-side: initiate sync after auth_ok (or no-auth handshake) */
   private _beginSyncInitiate(ws: WebSocket, peerId: string) {
-    this._send(ws, { type: 'hello', nodeId: this.nodeId, did: this.identity?.did })
+    this._send(ws, { type: 'hello', nodeId: this.nodeId, did: this.identity?.did, version: this.version, minVersion: this.minVersion, networkId: this.networkId })
     this._send(ws, { type: 'request_ids' })
     // Message handler already registered in _handleOutbound — no new listener needed
   }
@@ -312,7 +369,15 @@ export class SyncPeer {
     }
 
     switch (msg.type) {
-      case 'hello': break
+      case 'hello': {
+        const err = this._checkHello(msg)
+        if (err) {
+          const code = err.startsWith('network') ? WS_CLOSE_NETWORK_MISMATCH : WS_CLOSE_VERSION_TOO_OLD
+          console.warn(`[sync] Rejected peer ${peerId}: ${err}`)
+          ws.close(code, err)
+        }
+        break
+      }
 
       case 'request_ids':
         this._send(ws, { type: 'ids_response', ids: this.store.allIds() })

@@ -217,6 +217,8 @@ program
   .option('--mock-stage1', 'Skip real source URL verification (dev mode)')
   .option('--governance-interval <ms>', 'Governance finalization interval in ms', '300000')
   .option('--peers <urls>', 'Comma-separated peer WebSocket URLs to connect to')
+  .option('--network <id>', 'Network identifier: mainnet|testnet|devnet (default: mainnet)', process.env.AKP_NETWORK_ID ?? 'mainnet')
+  .option('--min-version <semver>', 'Minimum peer version to accept (default: 0.1.0)', process.env.AKP_MIN_PEER_VERSION ?? '0.1.0')
   .action(async (opts) => {
     // Auto-init identity if this is the first run
     const identityPath = join(CONFIG_DIR, 'identity.json')
@@ -264,6 +266,7 @@ program
     }
 
     listen()
+    console.log(`Network: ${opts.network}  |  Node version: 0.1.0  |  Min peer version: ${opts.minVersion}`)
 
     // Sync peer: keeps in-memory graph current as gossip arrives
     const syncPeer = new SyncPeer({
@@ -271,6 +274,9 @@ program
       port: parseInt(opts.port) + 1,
       requireAuth: true,
       onKUSynced: (ku) => graph.addKU(ku),
+      version: '0.1.0',
+      minVersion: opts.minVersion,
+      networkId: opts.network,
     })
     syncPeer.startServer()
 
