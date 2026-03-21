@@ -3,6 +3,13 @@ import 'dotenv/config'
 import { program } from 'commander'
 import { readFileSync, mkdirSync, copyFileSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
+import { randomBytes } from 'node:crypto'
+
+const AKP_BANNER = `
+╭─╮╷╭ ╭─╮
+├─┤├┴╮├─╯
+╵ ╵╵ ╵╵    Agent Knowledge Protocol v0.1.0
+`
 import { KUStore } from '../core/store.js'
 import { createKU, createProvenance } from '../core/ku.js'
 import { generateIdentity } from '../core/identity.js'
@@ -220,6 +227,16 @@ program
   .option('--network <id>', 'Network identifier: mainnet|testnet|devnet (default: mainnet)', process.env.AKP_NETWORK_ID ?? 'mainnet')
   .option('--min-version <semver>', 'Minimum peer version to accept (default: 0.1.0)', process.env.AKP_MIN_PEER_VERSION ?? '0.1.0')
   .action(async (opts) => {
+    console.log(AKP_BANNER)
+
+    // Auto-generate API key if not set
+    if (!process.env.AKP_API_KEY) {
+      const key = randomBytes(32).toString('hex')
+      process.env.AKP_API_KEY = key
+      console.log(`Generated API key (not persisted — set AKP_API_KEY to fix it):`)
+      console.log(`  AKP_API_KEY=${key}\n`)
+    }
+
     // Auto-init identity if this is the first run
     const identityPath = join(CONFIG_DIR, 'identity.json')
     if (!existsSync(identityPath)) {
