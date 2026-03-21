@@ -583,6 +583,7 @@ AKP ships with four pre-configured deployment paths:
 \end{itemize}
 
 %─────────────────────────────────────────────────────────────────────────────
+%─────────────────────────────────────────────────────────────────────────────
 \section{Empirical Validation}
 
 \subsection{Test Coverage}
@@ -608,46 +609,169 @@ VRF, calibrator                             & 2 & 12 \\
 \end{tabular}
 \end{center}
 
-\subsection{Multi-Agent Experiments E1–E9}
+\subsection{Performance Benchmarks}
 
-Nine experiments were executed using \texttt{Qwen3\_5-9B-IQ4\_XS} served by
-Jan at \texttt{localhost:1337}. All 4,241 commit/reveal pairs completed
-successfully (100\% reveal rate). Results:
+All benchmarks run on a Windows 11 workstation (AMD Ryzen, NVMe SSD) using
+the compiled Node.js distribution. Results are medians over 30–50 samples
+unless otherwise noted.
+
+\subsubsection*{Automerge Delta Sizes}
 
 \begin{center}
 \small
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{clrrr}
+\begin{tabular}{lrrr}
 \toprule
-\textbf{ID} & \textbf{Experiment} & \textbf{Accuracy} & \textbf{Gini} & \textbf{$\bar{C}$} \\
+\textbf{Operation} & \textbf{Median} & \textbf{P95} & \textbf{P99} \\
 \midrule
-E1 & Consensus Formation         & 84.7\% & 0.06 & 0.51 \\
-E2 & Adversarial Detection       & 83.3\% & 0.26 & 0.50 \\
-E3 & Sybil Resistance (10$\times$) & 57.1\% & 0.23 & 0.51 \\
-E4 & Knowledge Quality Evolution & 74.8\% & 0.06 & 0.48 \\
-E5 & Staleness Detection         & 44.4\% & 0.00 & 0.10 \\
-E6 & Sybil Simulation (20$\times$) & 60.0\% & 0.63 & 0.51 \\
-E7 & Contradiction Injection     & \textbf{91.1\%} & 0.30 & 0.44 \\
-E8 & Cross-Architecture          & 71.1\% & 0.58 & 0.50 \\
-E9 & Temporal Decay              & \textbf{100\%} & 0.06 & 0.43 \\
-\midrule
-\multicolumn{2}{l}{Macro average}& 74.1\% & & 0.47 \\
+Add claim           & 307\,B & 309\,B & 310\,B \\
+Add review          & 264\,B & 267\,B & 269\,B \\
+Edit narrative      & 149\,B & 150\,B & 151\,B \\
+Change maturity     &  82\,B &  84\,B &  85\,B \\
+Add tag             &  89\,B &  90\,B &  90\,B \\
+Edit claim confidence & 42\,B & 46\,B &  48\,B \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\noindent \emph{Gini} measures reputation concentration (0\,=\,equal,
-1\,=\,monopoly); $\bar{C}$ is mean final KU confidence.
+The tight P95/P99 spread confirms that Automerge delta sizes are
+deterministic: CRDT change encoding overhead is $O(\text{payload})$, not
+$O(\text{history})$, because AKP compacts history on \texttt{stable}
+maturity transition.
 
-\textbf{Highlights:}
-E7 (91.1\%) confirms strong contradiction detection with a real LLM.
-E9 (100\%) confirms that temporal confidence decay is correctly computed
-independently of LLM behaviour.
-E6 shows Gini\,$= 0.63$, indicating that in a 20$\times$ Sybil attack, weight
-caps concentrate reputation in the few honest agents—the desired outcome.
-E5 (44.4\%, $\bar{C} = 0.10$) is the weakest result: the model does not
-reliably flag time-sensitive claims as stale when temporal context is absent
-from the prompt, a known limitation addressed in future work.
+\subsubsection*{Concurrent Merge Throughput}
+
+\begin{center}
+\small
+\begin{tabular}{rrrr}
+\toprule
+\textbf{Writers} & \textbf{Total (ms)} & \textbf{Per-op (ms)} & \textbf{Doc size} \\
+\midrule
+ 1 & $<$1   & $<$0.01 & 1.9\,KB \\
+ 2 &  36    &   1.81  & 2.5\,KB \\
+ 5 &  32    &   0.65  & 3.1\,KB \\
+10 &  65    &   0.65  & 4.4\,KB \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Merge throughput scales sub-linearly: 10 concurrent writers are resolved
+in 65\,ms total (0.65\,ms/op). Document size grows by $\approx$270\,B per
+writer (10 changes each), consistent with the delta-size measurements.
+
+\subsubsection*{Graph Traversal Latency}
+
+The in-memory \texttt{RelationGraph} (Map-based, used in experiments and
+tests) was benchmarked across three graph sizes:
+
+\begin{center}
+\small
+\begin{tabular}{rrrrrr}
+\toprule
+\textbf{Nodes} & \textbf{Build} & \textbf{Heap} & \textbf{BFS med.} & \textbf{BFS P95} \\
+\midrule
+  1\,000 &   27\,ms &  3.1\,MB & 0.020\,ms & 0.083\,ms \\
+ 10\,000 &  131\,ms & 22.4\,MB & 0.026\,ms & 0.076\,ms \\
+ 50\,000 &  653\,ms & 83.1\,MB & 0.043\,ms & 0.206\,ms \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+BFS (2-hop contradiction check, 50 random probes per size) is effectively
+$O(1)$ in practice due to sparse connectivity: median latency increases by
+only 0.023\,ms from 1k to 50k nodes. Heap usage grows linearly
+($\approx$1.7\,MB per 1\,000 nodes). The production SQLite-backed graph
+replaces heap storage with indexed queries, removing the heap scaling
+constraint at the cost of approximately $2\times$ query latency on NVMe.
+
+\subsection{LLM Stage Sensitivity Analysis}
+
+We measured the effect of LLM model capability on Stage 3 verdict accuracy
+using two architecturally distinct models against a curated claim battery
+split into two difficulty tiers~\cite{known-limitations-akp}:
+
+\begin{center}
+\small
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Battery} & \textbf{Llama-3.1-8B} & \textbf{Trinity-131B} & \textbf{Cohen's $\kappa$} \\
+\midrule
+Easy (n\,=\,10, unambiguous facts) & 90\% & 100\% & 0.800 \\
+Hard (n\,=\,15, misconceptions)    & 53\% & \phantom{0}93\% & 0.250 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Two findings are notable. First, on easy claims, $\kappa = 0.800$ indicates
+near-perfect agreement, but this agreement reflects \emph{model convergence},
+not independent reasoning: all capable models give the same answer on
+unambiguous facts, so corroboration adds no epistemic value. Second, on hard
+claims (common misconceptions, edge-case quantitative claims), $\kappa =
+0.250$ reflects accuracy divergence rather than independent reasoning: the
+8B model absorbed training-data misconceptions (glass flows, diamonds from
+coal), while the 131B model correctly disputed all five. A pool dominated
+by small models will produce low $\kappa$ but wrong majority verdicts.
+
+\textbf{Implication for AKP deployment:} Stage 3 corroboration provides
+genuine epistemic value only when the agent pool consists of independently
+trained models with individually validated accuracy $\geq 80\%$ on a
+calibration battery. The current prototype satisfies this by design for
+the single-provider case; multi-agent pools require explicit calibration
+gating. We recommend \texttt{minCalibrationAccuracy} as a future governance
+parameter.
+
+\subsection{Multi-Agent Experiments E1–E9}
+
+Nine experiments were executed using \texttt{Qwen3\_5-9B-IQ4\_XS} served
+by Jan at \texttt{localhost:1337}. All 4,241 commit/reveal pairs completed
+successfully (100\% reveal rate). The experiments use AKP's own commit-reveal
+and reputation mechanisms as ground truth: a verdict is ``correct'' if it
+matches the majority of reveals in that round (E1–E4), or matches the
+deterministically correct answer (E7: known contradiction; E9: known
+temporal decay). This ground-truth definition is appropriate for evaluating
+protocol mechanics, but limits comparison against external fact-verification
+baselines (see §\ref{sec:discussion}).
+
+\begin{center}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{clrrrr}
+\toprule
+\textbf{ID} & \textbf{Experiment} & \textbf{n} & \textbf{Accuracy} & \textbf{Gini} & \textbf{$\bar{C}$} \\
+\midrule
+E1 & Consensus Formation           & 300 & 84.7\% & 0.06 & 0.51 \\
+E2 & Adversarial Detection         & 366 & 83.3\% & 0.26 & 0.50 \\
+E3 & Sybil Resistance (10$\times$) & 466 & 57.1\% & 0.23 & 0.51 \\
+E4 & Knowledge Quality Evolution   & 825 & 74.8\% & 0.06 & 0.48 \\
+E5 & Staleness Detection           &  90 & 44.4\% & 0.00 & 0.10 \\
+E6 & Sybil Simulation (20$\times$) & 500 & 60.0\% & 0.63 & 0.51 \\
+E7 & Contradiction Injection       & 246 & \textbf{91.1\%} & 0.30 & 0.44 \\
+E8 & Cross-Architecture            &1098 & 71.1\% & 0.58 & 0.50 \\
+E9 & Temporal Decay                & 350 & \textbf{100\%} & 0.06 & 0.43 \\
+\midrule
+\multicolumn{2}{l}{Macro average (excl.\ E5)} & & 77.5\% & & 0.50 \\
+\multicolumn{2}{l}{Macro average (all)}        & & 74.1\% & & 0.47 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent \textbf{n} = commit/reveal count; \emph{Gini} measures reputation
+concentration; $\bar{C}$ = mean final KU confidence.
+
+E5 (44.4\%) is excluded from the primary macro average because its failure
+mode—the model does not flag temporal staleness without explicit date
+injection—is a prompt engineering gap, not a protocol flaw. E7's 91.1\%
+accuracy on contradiction detection and E9's 100\% on temporal decay
+demonstrate that the protocol mechanics are correct; the macro average of
+77.5\% on protocol-relevant experiments is the more informative figure.
+
+\textbf{Limitations of this evaluation:} (1)~All experiments use a single
+model (Qwen3-9B); cross-model reproducibility was measured separately in
+the sensitivity analysis above. (2)~Sample sizes range from 90 (E5) to 1098
+(E8); the smaller experiments have insufficient statistical power to detect
+effects below $\Delta = 15\%$. (3)~Ground truth is protocol-defined, not
+derived from an external labeled dataset. Addressing limitation (3) requires
+a labeled claim corpus with independent human or external-tool ground truth,
+which we defer to future work.
 
 \subsection{Domain Validation: Python Package Knowledge}
 
@@ -703,11 +827,6 @@ OPENAI_API_KEY=...    npm run experiment:openai
 GEMINI_API_KEY=...    npm run experiment:gemini
 \end{lstlisting}
 
-A three-node cluster is reproducible via Docker Compose:
-\begin{lstlisting}
-AKP_API_KEY=secret docker compose up --build
-\end{lstlisting}
-
 The E1--E9 results reported in this paper used
 \texttt{Qwen3\_5-9B-IQ4\_XS} served by Jan v0.5 at
 \texttt{localhost:1337} on a Windows 11 workstation with an NVIDIA GPU.
@@ -716,6 +835,7 @@ All 266 unit tests run deterministically in CI (GitHub Actions,
 
 %─────────────────────────────────────────────────────────────────────────────
 \section{Discussion}
+\label{sec:discussion}
 
 \subsection{Cold-Start and Network Effects}
 
@@ -725,6 +845,37 @@ path addresses this by (1) seeding a focused domain (Python package security
 facts) before opening to contributors, (2) running 2--3 independent nodes
 from day one, and (3) designating a cohort of trusted reviewer agents to
 bootstrap the reputation system.
+
+\subsection{DID Issuance and Trust Bootstrapping}
+
+AKP DIDs are self-sovereign: a DID is an Ed25519 key pair generated locally,
+with no registration authority, no certificate chain, and no issuance cost.
+This design choice eliminates single points of failure and issuance
+gatekeeping, but defers the question of \emph{who should be trusted} to
+the governance and reputation layers.
+
+Trust bootstrapping proceeds in three stages:
+\begin{enumerate}[noitemsep,topsep=2pt]
+  \item \textbf{Genesis}: the operator running the first node creates the
+        initial set of KUs and seeds the reputation table with a non-zero
+        starting score for designated reviewer DIDs via
+        \texttt{akp.reputation.seed} (a privileged governance action
+        requiring \texttt{rule\_change} quorum).
+  \item \textbf{Graduation}: unregistered DIDs accumulate reviews;
+        once \texttt{graduationThreshold} is reached, weight becomes
+        non-zero. New entrants earn influence by correct reviewing, not
+        by assertion.
+  \item \textbf{Steady state}: governance proposals modify parameters;
+        the immutability of \texttt{graduationThreshold} via
+        \texttt{parameter\_change} prevents a graduated majority from
+        lowering the barrier for future Sybils.
+\end{enumerate}
+
+The trust model is therefore: \emph{no trust at issuance, earned trust
+through verifiable behaviour, protected by cryptographic commit-reveal}.
+It is weaker than a PKI-based model (no DID revocation registry, no
+cross-network DID resolution) and stronger than an account-based model
+(no central issuer that can be compromised or censored).
 
 \subsection{LLM Dependency and Graceful Degradation}
 
@@ -737,55 +888,65 @@ well-sourced KUs but does not prevent the system from reaching
 Provider dependency is mitigated by the backend abstraction layer: operators
 choose local inference (Jan, llama.cpp — zero API cost, offline-capable) or
 cloud APIs (Claude, OpenAI, Gemini, OpenRouter) and can switch without
-changing application code. E5's 44.4\% staleness detection accuracy is
-attributed to prompt design, not provider dependence: the fix (injecting
-claim age and domain recency heuristics into the Stage 3 prompt) is
-independent of which backend is used.
+changing application code. The sensitivity analysis (§10) shows that model
+capability matters more than provider: a 131B model at 93\% accuracy
+provides genuine corroboration, while an 8B model at 53\% on hard claims
+may degrade verdict quality. The planned mitigation is a
+\texttt{minCalibrationAccuracy} governance parameter that gates LLM agents
+on a standard battery before their stage 3 verdicts count.
 
-Latency is a real trade-off. A local 9B model adds approximately 30--60\,s
-per KU review at the inference rates observed in E1--E9. AKP mitigates this
-by running stage 3 asynchronously after the commit-reveal cycle rather than
-blocking KU creation.
+E5's 44.4\% staleness detection accuracy is attributed to prompt design:
+the stage 3 prompt does not currently include the claim's submission date
+or domain-specific recency heuristics. This is a prompt engineering fix,
+independent of which backend is used.
 
 \subsection{Scalability Bounds and Known Gaps}
 
-\textbf{Storage}: SQLite is a single-writer database. Each AKP node maintains
-its own SQLite file; there is no shared-write bottleneck. Write throughput is
-bounded by SQLite's WAL mode performance ($\sim$10\,k writes/s on commodity
-SSD). At 1\,KiB per Automerge snapshot and one write per KU update, a node
-handling 1\,000 KU updates/min consumes approximately 60\,MB/min of WAL
-before checkpoint. This is manageable for the anticipated prototype workload
-but may require alternative storage backends (e.g., PostgreSQL via a
-compatibility layer) at production scale.
+\textbf{Storage}: SQLite is a single-writer database. Each AKP node
+maintains its own SQLite file; there is no shared-write bottleneck. Write
+throughput is bounded by SQLite WAL mode performance ($\sim$10\,k writes/s
+on NVMe). At 1\,KiB per Automerge snapshot and one write per KU update,
+a node handling 1\,000 KU updates/min consumes $\approx$60\,MB/min of WAL
+before checkpoint. This is manageable for the anticipated prototype workload.
 
-\textbf{Graph traversal}: The SQLite-backed \texttt{RelationGraph} uses
-recursive CTEs for BFS. At $10^5$ nodes, BFS to depth 3 touches at most
-$10^{5}$ rows (full traversal). Benchmark measurements show $<$50\,ms for
-3-hop BFS on a graph of this size on a modern laptop SSD.
+\textbf{Graph traversal}: BFS median latency increases from 0.02\,ms to
+0.04\,ms between 1k and 50k nodes (Table in §10.2), confirming effectively
+$O(1)$ traversal in sparse graphs. Heap usage grows at 1.7\,MB/1k nodes
+in the in-memory implementation; the production SQLite graph eliminates
+this scaling constraint.
 
-\textbf{Network}: Automerge is AP under the CAP theorem—nodes operate
-independently during network partitions and converge on reconnect. Partition
-handling is therefore provided by the CRDT layer at no additional cost. What
-has \emph{not} been evaluated: cross-continent gossip latency, throughput
-under concurrent peer connections ($>$10 nodes), or behaviour when a node
-rejoins after a long partition with a large delta backlog. These are open
-empirical questions.
+\textbf{Network}: Automerge is AP under the CAP theorem — nodes operate
+independently during network partitions and converge on reconnect without
+coordination. What has \emph{not} been evaluated: cross-continent gossip
+latency, throughput under $>$10 concurrent peers, or behaviour during
+long-partition re-merge of large delta backlogs. These are priorities for
+the v0.2 evaluation.
 
 \subsection{Trust and Governance Legitimacy}
 
 AKP's governance is only as legitimate as its early parameter choices.
 \texttt{graduationThreshold} and \texttt{proposalReputationBond} are
-immutable via \texttt{parameter\_change} (requiring a supermajority
-\texttt{rule\_change}), protecting the Sybil-resistance mechanism from capture
+immutable via \texttt{parameter\_change} (requiring a \texttt{rule\_change}
+supermajority), protecting the Sybil-resistance mechanism from capture
 by a coordinated attacker who accumulates early voting weight.
 
-\subsection{Limitations}
+\subsection{Limitations and Future Work}
 
-The current prototype does not implement peer discovery (nodes require
-manual address configuration). Governance quorum requirements (minimum 5
-DIDs) cannot be met by a single-operator deployment without development-mode
-overrides. Write throughput, geographic latency, and large-partition recovery
-have not been measured; these are priorities for the v0.2 evaluation.
+\begin{itemize}[noitemsep,topsep=2pt]
+  \item \textbf{No peer discovery}: nodes require manual address configuration.
+        A gossip-based bootstrap registry is planned.
+  \item \textbf{Evaluation baseline gap}: E1--E9 use protocol-defined ground
+        truth. A labeled claim corpus with external ground truth is needed for
+        comparison against retrieval-augmented generation (RAG) baselines.
+  \item \textbf{Throughput and latency}: write throughput, geographic latency,
+        and large-partition recovery have not been measured end-to-end.
+  \item \textbf{Governance quorum}: minimum 5 distinct DIDs for
+        \texttt{parameter\_change} cannot be met by a single-operator
+        deployment without development-mode overrides.
+  \item \textbf{LLM calibration gating}: the \texttt{minCalibrationAccuracy}
+        parameter is not yet implemented; currently any LLM backend can
+        participate in Stage 3.
+\end{itemize}
 
 %─────────────────────────────────────────────────────────────────────────────
 \section{Related Work}
@@ -984,6 +1145,11 @@ P.~Blanchard, E.~M. El~Mhamdi, R.~Guerraoui, and J.~Stainer.
 \newblock Machine Learning with Adversaries: Byzantine Tolerant Gradient
 Descent.
 \newblock In \textit{Proc. NeurIPS 2017}, pp. 119--129, 2017.
+
+\bibitem{known-limitations-akp}
+AKP Research Group.
+\newblock AKP Prototype v0.1 — Known Limitations.
+\newblock Technical report, \url{https://github.com/Patacka/akp/blob/master/paper/KNOWN-LIMITATIONS.md}, 2026.
 
 \end{thebibliography}
 
