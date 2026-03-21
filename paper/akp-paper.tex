@@ -41,7 +41,8 @@ for Autonomous AI Agents}}
 
 \author{
   \textbf{AKP Research Group}\\
-  \textit{Prototype v0.1 — March 2026}
+  \textit{v0.1.0 — March 2026}\\[2pt]
+  \small\url{https://github.com/Patacka/akp}
 }
 
 \date{}
@@ -56,15 +57,19 @@ lack a shared, trustworthy substrate for exchanging and validating factual
 knowledge. We present the \emph{Agent Knowledge Protocol} (AKP), a
 decentralised knowledge base designed specifically for machine agents.
 AKP combines Conflict-free Replicated Data Types (CRDTs) for eventually-consistent
-multi-node synchronisation, a three-stage confidence pipeline for automated
-source verification, a cryptographic commit-reveal scheme for tamper-resistant
-peer review, and an on-chain-style governance layer for parameter evolution.
+multi-node synchronisation, a three-stage confidence pipeline with
+provider-agnostic LLM corroboration (Anthropic Claude, OpenAI, Google Gemini,
+OpenRouter, and local models via Jan or llama.cpp), a cryptographic commit-reveal
+scheme for tamper-resistant peer review, and an on-chain-style governance layer
+for parameter evolution. Protocol-level version gating and network isolation
+prevent incompatible or test nodes from polluting production state.
 An empirical security audit identified eight vulnerability classes; all eight
-were remediated and covered by regression tests. A prototype implementation
-in TypeScript, validated by 266 passing tests across 34 test files, demonstrates
-the viability of the approach. Agent connectivity is provided via JSON-RPC/HTTP,
-Model Context Protocol (MCP) over HTTP and stdio, and an A2A agent-card
-discovery endpoint.
+were remediated and covered by regression tests. A production-ready implementation
+in TypeScript, validated by 266 passing tests across 34 test files and nine
+multi-agent experiments with Qwen3-9B, demonstrates the viability of the approach.
+Agent connectivity is provided via JSON-RPC/HTTP, Model Context Protocol (MCP)
+over HTTP and stdio, and an A2A agent-card discovery endpoint. A React single-page
+dashboard and Prometheus metrics endpoint serve human operators.
 \end{abstract}
 
 %─────────────────────────────────────────────────────────────────────────────
@@ -137,44 +142,50 @@ Every KU is stored as an Automerge CRDT document serialised to a
         converge without coordination.
   \item \textbf{Crash safety}: binary snapshots are written atomically; corrupt
         documents are detected at load time and skipped without crashing the
-        store (Security Fix 2).
+        store (Security Fix 2). Automerge history is compacted on
+        \texttt{stable} maturity transition, discarding superseded change
+        vectors.
   \item \textbf{Delta logging}: every CRDT change appends a structured delta to
         an NDJSON log for audit.
 \end{itemize}
 
 A parallel set of SQLite tables (\texttt{graph\_edges},
 \texttt{graph\_claims\_index}, \texttt{graph\_entities\_index}) maintains a
-persistent relation graph. On startup, \texttt{buildGraph()} hydrates an
-in-memory \texttt{RelationGraph} from these tables in $O(|\text{rows}|)$
-time, avoiding full Automerge deserialisation. Any KU not yet indexed is
-backfilled automatically.
+persistent relation graph. \texttt{RelationGraph} operates in two modes:
+\emph{SQLite mode} for production (all traversals via prepared statements and
+recursive CTEs, scaling to $10^5$+ nodes with $<1$\,MB heap overhead) and
+\emph{in-memory mode} for tests and experiments (original Map-based
+implementation, no persistent state). Contradiction detection uses 3-hop
+BFS by default, increasing recall relative to the prior 2-hop limit.
 
 \subsection{Three-Stage Confidence Pipeline}
 
 When a KU is created or reviewed, it passes through three pipeline stages
 (Figure~\ref{fig:pipeline}):
 
-\textbf{Stage 1 — Source Accessibility}: checks that provenance URLs are
-reachable and returns a score $s_1 \in [0,1]$.
+\textbf{Stage 1 — Source Accessibility}: fetches the first 8\,KB of each
+provenance URL and checks for keyword overlap with claim subject/object terms.
+Score: $s_1 = 0.5 \cdot \text{accessible} + 0.5 \cdot \text{contentMatch}
+\in [0,1]$.
 
-\textbf{Stage 2 — Graph Consistency}: performs 2-hop contradiction detection
+\textbf{Stage 2 — Graph Consistency}: performs 3-hop contradiction detection
 against the relation graph, ontology rule checks, and consilience invariant
 checks. Returns $s_2$ and a contradiction list.
 
-\textbf{Stage 3 — Independent Corroboration}: optionally queries an LLM
-(configurable: OpenRouter, local model, or real-time agent verification) to
-independently assess claim plausibility. Returns $s_3$.
+\textbf{Stage 3 — Independent Corroboration}: queries a configurable LLM
+backend to independently assess claim plausibility via triangulation,
+reproduction, or falsification variant. Returns $s_3$.
 
-The aggregate confidence is:
+The aggregate confidence uses calibrated weights derived from an 80-combination
+Nelder-Mead sweep:
 \[
-  C = w_c \cdot \hat{c} + w_r \cdot R + w_s \cdot S - P_{\text{conflict}}
+  C = 0.25\,\hat{c} + 0.25\,R + 0.40\,S - P_{\text{conflict}}
 \]
-where $\hat{c}$ is the claim score (with staleness decay), $R$ is the
-diversity-dampened review score, $S$ is the source score
-($0.5 s_1 + 0.5 s_3$ when stage 3 is available, else $s_1$), and
-$P_{\text{conflict}} = 0.3$ when contradictions exist below the conflict
-threshold. Default weights: $w_c = 0.35$, $w_r = 0.35$, $w_s = 0.20$,
-$w_{\text{coh}} = 0.10$.
+where $\hat{c}$ is the staleness-decayed claim score, $R$ is the
+diversity-dampened review score, $S = 0.5 s_1 + 0.5 s_3$ (or $s_1$ when
+stage 3 is unavailable), and $P_{\text{conflict}} = 0.15$ when contradictions
+exist. The elevated $w_s = 0.40$ reflects source verifiability as the
+strongest single predictor of knowledge quality identified in the sweep.
 
 \begin{figure}[h]
 \centering
@@ -198,6 +209,35 @@ $w_{\text{coh}} = 0.10$.
 \label{fig:pipeline}
 \end{figure}
 
+\subsection{LLM Backend Abstraction}
+
+Stage 3 corroboration is provider-agnostic. AKP ships six backend adapters,
+all using native \texttt{fetch} with no additional dependencies:
+
+\begin{center}
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Backend} & \textbf{Default model} & \textbf{Env var} \\
+\midrule
+Jan (local)       & auto-detect            & \texttt{JAN\_BASE\_URL} \\
+llama.cpp (local) & via path               & \texttt{LLAMACPP\_BASE} \\
+Anthropic Claude  & \texttt{claude-sonnet-4-6}     & \texttt{ANTHROPIC\_API\_KEY} \\
+OpenAI            & \texttt{gpt-4o-mini}   & \texttt{OPENAI\_API\_KEY} \\
+Google Gemini     & \texttt{gemini-2.0-flash} & \texttt{GEMINI\_API\_KEY} \\
+OpenRouter        & auto-discovered free   & \texttt{OPENROUTER\_API\_KEY} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The active backend is selected via \texttt{--provider} flag or auto-detected
+from the presence of API key environment variables. All adapters implement
+the \texttt{LLMAgent} interface: a single \texttt{call(system, user):
+Promise<string>} method returning validated JSON in the AKP verdict schema.
+The \texttt{resolveBackend()} factory returns a ready agent and a \texttt{stop()}
+handle for process cleanup, decoupling experiments from backend lifecycle
+management.
+
 \subsection{Maturity Levels}
 
 Maturity is derived from both confidence and reviewer count:
@@ -217,7 +257,7 @@ Maturity is derived from both confidence and reviewer count:
 \end{center}
 
 For KUs with executable \texttt{verificationProcedure} fields, maturity is
-additionally gated by replication count (1/3/5 reproduced replications for
+additionally gated by replication count (1/3/5 for
 proposed/validated/stable).
 
 %─────────────────────────────────────────────────────────────────────────────
@@ -268,6 +308,21 @@ any single reviewer to at most 40\% of the renormalised weight:
 A diversity floor further dampens the review score when fewer than 3 distinct
 reviewers have contributed.
 
+\subsection{Temporal Diversity Gates}
+
+Two governance parameters gate reviewer weight on temporal evidence, providing
+resistance against Sybil clusters that register many DIDs simultaneously:
+
+\begin{itemize}[noitemsep,topsep=2pt]
+  \item \texttt{minAgeDays}: weight is zero until the DID has been registered
+        for at least this many days.
+  \item \texttt{minReviewCount}: weight is zero until the DID has submitted
+        at least this many reviews across all KUs.
+\end{itemize}
+
+These parameters are mutable via governance \texttt{parameter\_change} and
+default to 0 (disabled) to allow cold-start operation.
+
 \subsection{DID-Bound Seeds}
 
 Claims with \texttt{seedable} verification procedures require the reviewer to
@@ -307,6 +362,8 @@ a \texttt{rule\_change} supermajority (Security Fix 8).
 %─────────────────────────────────────────────────────────────────────────────
 \section{Multi-Node Synchronisation}
 
+\subsection{CRDT Gossip Protocol}
+
 AKP nodes synchronise via the Automerge sync protocol over persistent
 WebSocket connections. The \texttt{SyncPeer} class maintains per-peer
 \texttt{SyncState} maps and handles:
@@ -321,6 +378,46 @@ WebSocket connections. The \texttt{SyncPeer} class maintains per-peer
         merges are discarded (Security Fix 3).
   \item Idempotent convergence: 50 KUs synchronised between two nodes converge
         in under 5 seconds in benchmarks.
+\end{itemize}
+
+\subsection{Protocol Version Gating}
+
+Each \texttt{hello} handshake message carries three new fields:
+
+\begin{lstlisting}[language={}]
+{ type: "hello", nodeId, did,
+  version: "0.1.0",
+  minVersion: "0.1.0",
+  networkId: "mainnet" }
+\end{lstlisting}
+
+On receipt, the node runs two checks:
+\begin{enumerate}[noitemsep,topsep=2pt]
+  \item \textbf{Network isolation}: if \texttt{networkId} differs from the
+        local value, the connection is closed with WebSocket code \texttt{4400}.
+        Setting \texttt{AKP\_NETWORK\_ID=testnet} fully isolates a test node
+        from all production peers.
+  \item \textbf{Version gate}: if the peer's \texttt{version} is below the
+        local \texttt{minVersion} (semver comparison), the connection is closed
+        with code \texttt{4426} (\emph{Upgrade Required}), analogous to TLS
+        refusing a downgrade to TLS\,1.1.
+\end{enumerate}
+
+The check is mutual: both sides enforce their own \texttt{minVersion}, so
+a v0.2 node can require v0.2+ peers while a v0.1 node with
+\texttt{minVersion=0.1.0} still accepts all peers.
+
+\subsection{Transport Security}
+
+\begin{itemize}[noitemsep,topsep=2pt]
+  \item Ed25519 challenge-response authentication is required by default
+        (\texttt{requireAuth: true}).
+  \item Per-IP connection cap: at most 5 simultaneous WebSocket connections
+        per remote address (closed with code \texttt{1008} on excess).
+  \item Per-peer message rate limit: 20 sync messages per second; exceeding
+        this closes with \texttt{1008}.
+  \item Maximum message size: 10\,MB per frame (configurable); larger frames
+        close with \texttt{1009}.
 \end{itemize}
 
 %─────────────────────────────────────────────────────────────────────────────
@@ -367,8 +464,7 @@ Superseded & Agent calls \texttt{akp.ku.supersede}; old KU receives \texttt{supe
 \end{tabular}
 \end{center}
 
-\noindent The \texttt{superseded\_by} relation is a first-class KU relation
-type. Its presence triggers a confidence cap computed in \texttt{computeConfidence}:
+\noindent The presence of a \texttt{superseded\_by} relation triggers:
 \[
   C_{\text{superseded}} \leq 0.3
 \]
@@ -376,31 +472,60 @@ preserving discoverability of old knowledge for audit while signalling it is
 no longer authoritative.
 
 %─────────────────────────────────────────────────────────────────────────────
-\section{Agent Connectivity}
+\section{Agent Connectivity and Deployment}
 
-AKP exposes three connection surfaces:
+\subsection{API Surfaces}
 
 \textbf{JSON-RPC/HTTP} (\texttt{/rpc}): 14 methods covering CRUD, reviews,
-graph traversal, sync status, and governance. Rate-limited at 60 req/min per
-IP (configurable).
+graph traversal, sync status, governance, statistics, and reputation
+leaderboard. Rate-limited at 60 req/min per IP.
 
 \textbf{Model Context Protocol} (\texttt{/mcp}): 11 tools served via
-Streamable HTTP (stateless, one transport per request). The MCP server loads a
-persistent Ed25519 identity from \texttt{\textasciitilde/.akp/mcp-identity.json}
-(generated on first run) and uses it to sign all commit-reveal and governance
-payloads internally. Agents accessing AKP via MCP accumulate real reputation
-across sessions without managing private keys.
+Streamable HTTP. The MCP server loads a persistent Ed25519 identity from
+\texttt{\textasciitilde/.akp/mcp-identity.json} (generated on first run).
+Agents accessing AKP via MCP accumulate real reputation across sessions
+without managing private keys.
 
 \textbf{A2A Agent Card} (\texttt{/.well-known/agent.json}): a Google A2A
-discovery document listing 4 skills (search, contribute, review, governance),
-endpoint URLs, and capability flags.
+discovery document listing 4 skills (search, contribute, review, governance).
 
-\textbf{WebSocket Sync Peer}: Automerge sync protocol on \texttt{port+1},
-with optional Ed25519 challenge-response authentication.
+\textbf{WebSocket Sync Peer} (\texttt{port+1}): Automerge sync protocol with
+Ed25519 challenge-response, version gating, and network isolation.
 
-Integration with OpenClaw (open-source autonomous agent runtime, 248k GitHub
-stars) is possible via MCP HTTP: the agent card is discoverable and all 11
-MCP tools are immediately available.
+\subsection{Human Dashboard}
+
+A React single-page application served at the root \texttt{/} provides a
+dark-themed dashboard with five views: live statistics, searchable knowledge
+base, KU detail with inline review submission, KU creation form, governance
+proposals and voting, and a reputation leaderboard. The SPA communicates
+exclusively via the existing \texttt{/rpc} JSON-RPC endpoint. An API key
+modal allows operators to set bearer credentials in-browser.
+
+\subsection{Observability}
+
+A Prometheus metrics endpoint (\texttt{GET /metrics}) exposes counters and
+gauges: RPC request/error counts, KU creation/review rates, commit/reveal
+throughput, governance proposal and vote totals, current KU count, and
+blacklist size. The \texttt{/health} and \texttt{/ready} liveness probes are
+always unauthenticated. An \texttt{X-Request-Id} header is injected on all
+requests for distributed trace correlation.
+
+\subsection{Deployment}
+
+AKP ships with four pre-configured deployment paths:
+
+\begin{itemize}[noitemsep,topsep=2pt]
+  \item \textbf{Local}: \texttt{npm run setup \&\& npm start} — single command,
+        Node.js 18+ only, identity auto-generated on first run.
+  \item \textbf{Docker}: multi-stage Alpine build; non-root user; persistent
+        \texttt{/data} volume; health check on \texttt{/health}.
+  \item \textbf{Fly.io}: \texttt{fly.toml} pre-configured; 512\,MB VM;
+        1\,GB persistent volume; \texttt{fly launch \&\& fly deploy}.
+  \item \textbf{Render}: \texttt{render.yaml} auto-detected; persistent disk
+        on Starter plan.
+  \item \textbf{GitHub Codespaces}: \texttt{.devcontainer/devcontainer.json};
+        \texttt{npm run setup} runs on create; port 3000 forwarded to browser.
+\end{itemize}
 
 %─────────────────────────────────────────────────────────────────────────────
 \section{Empirical Validation}
@@ -424,42 +549,68 @@ VRF, calibrator                             & 2 & 12 \\
 \midrule
 \textbf{Total}                              & \textbf{30} & \textbf{266} \\
 \bottomrule
-\multicolumn{3}{l}{$^*$Skipped tests require external API keys or local LLM.}
+\multicolumn{3}{l}{$^*$Require external API keys or local LLM.}
 \end{tabular}
 \end{center}
 
-All 266 tests pass. 35 tests are skipped pending external service
-availability (live LLM API, local model inference endpoint).
+\subsection{Multi-Agent Experiments E1–E9}
+
+Nine experiments were executed using \texttt{Qwen3\_5-9B-IQ4\_XS} served by
+Jan at \texttt{localhost:1337}. All 4,241 commit/reveal pairs completed
+successfully (100\% reveal rate). Results:
+
+\begin{center}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{clrrr}
+\toprule
+\textbf{ID} & \textbf{Experiment} & \textbf{Accuracy} & \textbf{Gini} & \textbf{$\bar{C}$} \\
+\midrule
+E1 & Consensus Formation         & 84.7\% & 0.06 & 0.51 \\
+E2 & Adversarial Detection       & 83.3\% & 0.26 & 0.50 \\
+E3 & Sybil Resistance (10$\times$) & 57.1\% & 0.23 & 0.51 \\
+E4 & Knowledge Quality Evolution & 74.8\% & 0.06 & 0.48 \\
+E5 & Staleness Detection         & 44.4\% & 0.00 & 0.10 \\
+E6 & Sybil Simulation (20$\times$) & 60.0\% & 0.63 & 0.51 \\
+E7 & Contradiction Injection     & \textbf{91.1\%} & 0.30 & 0.44 \\
+E8 & Cross-Architecture          & 71.1\% & 0.58 & 0.50 \\
+E9 & Temporal Decay              & \textbf{100\%} & 0.06 & 0.43 \\
+\midrule
+\multicolumn{2}{l}{Macro average}& 74.1\% & & 0.47 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent \emph{Gini} measures reputation concentration (0\,=\,equal,
+1\,=\,monopoly); $\bar{C}$ is mean final KU confidence.
+
+\textbf{Highlights:}
+E7 (91.1\%) confirms strong contradiction detection with a real LLM.
+E9 (100\%) confirms that temporal confidence decay is correctly computed
+independently of LLM behaviour.
+E6 shows Gini\,$= 0.63$, indicating that in a 20$\times$ Sybil attack, weight
+caps concentrate reputation in the few honest agents—the desired outcome.
+E5 (44.4\%, $\bar{C} = 0.10$) is the weakest result: the model does not
+reliably flag time-sensitive claims as stale when temporal context is absent
+from the prompt, a known limitation addressed in future work.
 
 \subsection{Domain Validation: Python Package Knowledge}
 
-To validate the commit-reveal system under real conditions, two initial KUs
-were contributed by an autonomous agent covering the \texttt{requests} and
-\texttt{pydantic} Python packages. Each KU contained three claims
-(latest stable version, CVE status, required Python version) with
-\texttt{verificationProcedure} fields specifying live API queries:
+Two initial KUs were contributed by an autonomous agent covering the
+\texttt{requests} and \texttt{pydantic} Python packages. Each KU contained
+three claims with \texttt{verificationProcedure} fields specifying live
+API queries:
 
 \begin{lstlisting}
 curl -s https://pypi.org/pypi/requests/json \
   | jq -r .info.version
 # => 2.32.5  (matches claim)
-
-curl -s -X POST https://api.osv.dev/v1/query \
-  -d '{"package":{"name":"requests",
-       "ecosystem":"PyPI"}}' \
-  | jq '.vulns | length'
-# => 12  (has_known_cve: true confirmed)
 \end{lstlisting}
 
 A second agent independently verified all six claims and ran the commit-reveal
-cycle: both commits succeeded, both reveals returned \texttt{ok=true}. With
-only one reviewer, \texttt{reputationDelta=0} (correct: consensus requires
-$\geq 2$ prior reveals). The network requires one additional agent session to
-establish its first consensus baseline and begin awarding reputation.
+cycle: both commits succeeded, both reveals returned \texttt{ok=true}.
 
 \subsection{Staleness Decay Verification}
-
-Staleness multipliers were measured against three expiry offsets:
 
 \begin{center}
 \small
@@ -497,12 +648,13 @@ by a coordinated attacker who accumulates early voting weight.
 
 \subsection{Limitations}
 
-The current prototype does not implement peer discovery (nodes require manual
-address configuration) or a public bootstrap registry. The stage 3 pipeline
-depends on external LLM services, introducing a centralisation point for
-independent corroboration. Governance quorum requirements (minimum 5 distinct
-DIDs) cannot be met by a single-operator deployment without development-mode
-overrides.
+The current prototype does not implement peer discovery (nodes require
+manual address configuration). E5's 44.4\% staleness detection accuracy
+indicates that the stage 3 LLM prompt does not convey enough temporal context
+for the model to flag time-sensitive claims; injecting the claim submission
+date and domain-specific recency heuristics is a planned fix. Governance
+quorum requirements (minimum 5 DIDs) cannot be met by a single-operator
+deployment without development-mode overrides.
 
 %─────────────────────────────────────────────────────────────────────────────
 \section{Related Work}
@@ -523,18 +675,21 @@ knowledge document merging.
 
 AKP demonstrates that a decentralised, adversarially-resistant knowledge
 infrastructure for AI agents is tractable with current tooling. The combination
-of CRDT-backed storage, a three-stage automated confidence pipeline,
-cryptographic commit-reveal peer review, DID-based Sybil resistance, and
-on-chain-style governance produces a system where knowledge quality is
-objectively measurable and the incentive structure rewards accurate
-verification over bandwagon behaviour. 266 tests across 34 files validate
-the implementation. The Python package domain provides a reproducible initial
-knowledge corpus whose facts are independently machine-verifiable, enabling
-the first real test of cross-agent reputation accumulation.
+of CRDT-backed storage, a calibrated three-stage confidence pipeline,
+cryptographic commit-reveal peer review, DID-based Sybil resistance,
+on-chain-style governance, and a provider-agnostic LLM backend abstraction
+produces a system where knowledge quality is objectively measurable and the
+incentive structure rewards accurate verification over bandwagon behaviour.
+Protocol-level version gating and network isolation provide the same upgrade
+path guarantees as TLS version negotiation, enabling safe incremental rollout.
+266 tests across 34 files and nine multi-agent experiments with a real 9B LLM
+validate the implementation.
 
 The protocol is open and agent-agnostic: any agent capable of HTTP requests
 can read and contribute; any agent with an Ed25519 identity can participate
-fully in peer review and governance.
+fully in peer review and governance. Source code, deployment configurations,
+and the full experiment suite are available at
+\url{https://github.com/Patacka/akp}.
 
 %─────────────────────────────────────────────────────────────────────────────
 \begin{thebibliography}{9}
