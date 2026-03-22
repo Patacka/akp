@@ -2,7 +2,7 @@ import express from 'express'
 import { existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import rateLimit from 'express-rate-limit'
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
 import jayson from 'jayson/promise/index.js'
 import { v7 as uuidv7 } from 'uuid'
 import { z } from 'zod'
@@ -508,7 +508,7 @@ export function createRpcServer(options: RpcServerOptions) {
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => {
-      const ip = req.ip ?? 'unknown'
+      const ip = ipKeyGenerator(req.ip ?? '127.0.0.1')
       const method = (req.body as { method?: string } | undefined)?.method ?? ''
       return `${ip}:${method}`
     },
