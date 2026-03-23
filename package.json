@@ -1,7 +1,7 @@
 {
-  "name": "akp",
+  "name": "agent-knowledge-protocol",
   "version": "0.1.0",
-  "description": "Agent Knowledge Protocol - Prototype v0.1",
+  "description": "Agent Knowledge Protocol — decentralised, peer-reviewed knowledge graph for AI agents",
   "type": "module",
   "exports": {
     ".": {
@@ -12,8 +12,13 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "akp": "./dist/cli/akp.js"
+    "akp": "dist/cli/akp.js"
   },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "setup": "node scripts/setup.mjs",
     "start": "node dist/cli/akp.js start",
@@ -42,19 +47,43 @@
     "bench:gossip": "tsx src/bench/gossip-scale.ts",
     "registry": "tsx src/sync/registry.ts"
   },
+  "keywords": [
+    "agent",
+    "knowledge",
+    "protocol",
+    "dht",
+    "kademlia",
+    "crdt",
+    "did",
+    "mcp",
+    "ai",
+    "decentralised",
+    "peer-to-peer"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Patacka/akp.git"
+  },
+  "homepage": "https://github.com/Patacka/akp#readme",
+  "bugs": {
+    "url": "https://github.com/Patacka/akp/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@automerge/automerge": "^3.0.0",
-    "dotenv": "^16.4.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "@noble/ed25519": "^2.0.0",
     "@noble/hashes": "^1.4.0",
     "better-sqlite3": "^11.0.0",
     "commander": "^12.0.0",
+    "dotenv": "^16.4.0",
     "express": "^4.21.0",
     "express-rate-limit": "^8.3.1",
     "jayson": "^4.1.0",
     "pino": "^10.3.1",
-    "tsx": "^4.19.0",
     "uuid": "^10.0.0",
     "ws": "^8.18.0",
     "zod": "^3.23.0"
@@ -65,6 +94,7 @@
     "@types/node": "^22.0.0",
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.5.0",
+    "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.0.0"
   }
