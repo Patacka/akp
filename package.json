@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "Agent Knowledge Protocol - Prototype v0.1",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
     "akp": "./dist/cli/akp.js"
   },
@@ -24,7 +32,13 @@
     "experiment:claude": "tsx src/experiments/run.ts --provider claude",
     "experiment:openai": "tsx src/experiments/run.ts --provider openai",
     "experiment:gemini": "tsx src/experiments/run.ts --provider gemini",
-    "experiment:openrouter": "tsx src/experiments/run.ts --provider openrouter"
+    "experiment:openrouter": "tsx src/experiments/run.ts --provider openrouter",
+    "experiment:sweep": "tsx src/experiments/multi-model-sweep.ts",
+    "experiment:report": "tsx src/experiments/multi-model-report.ts",
+    "experiment:calibrate": "tsx src/pipeline/calibration.ts",
+    "bench:cap": "tsx src/bench/cap-analysis.ts",
+    "bench:gossip": "tsx src/bench/gossip-scale.ts",
+    "registry": "tsx src/sync/registry.ts"
   },
   "dependencies": {
     "@automerge/automerge": "^3.0.0",

@@ -13,7 +13,9 @@
  */
 import { describe, it, expect, beforeAll } from 'vitest'
 import { createKU, createProvenance, createClaim } from '../../src/core/ku.js'
-import { runStage3 } from '../../src/pipeline/stage3.js'
+import { runStage3, createMockAgent } from '../../src/pipeline/stage3.js'
+import { createDefaultGovernanceState } from '../../src/core/governance.js'
+import { RelationGraph as _RelGraph } from '../../src/core/graph.js'
 import {
   createLocalAgent,
   isJanRunning,
@@ -222,5 +224,75 @@ describe('Full pipeline — local Stage 3', () => {
     console.log(`False claim: conf=${result.confidence.aggregate.toFixed(3)} stage3=${result.stage3?.stage3Score.toFixed(3)} maturity=${result.maturity}`)
     expect(result.stage3?.stage3Score ?? 1).toBeLessThan(0.5)
     expect(result.maturity).not.toBe('stable')
+  })
+})
+
+// ── minCalibrationAccuracy gating (unit tests, no external LLM) ───────────────
+
+describe('minCalibrationAccuracy gating', () => {
+  function makeSimpleKU() {
+    const prov = createProvenance({ did: 'did:key:test', type: 'agent', method: 'observation' })
+    return createKU({ domain: 'test', title: { en: 'Calibration gate test' }, provenance: prov })
+  }
+
+  it('runs stage3 when minCalibrationAccuracy is 0 (default)', async () => {
+    const ku = makeSimpleKU()
+    const graph = new _RelGraph()
+    graph.addKU(ku)
+    const agent = createMockAgent('a1', 'mock', 'confirm')
+    const gov = createDefaultGovernanceState()  // minCalibrationAccuracy defaults to 0
+
+    const result = await runPipeline(ku, graph, {
+      mockStage1: true,
+      runStage3: true,
+      agents: [agent],
+      governance: gov,
+    })
+    // With threshold=0 calibration is skipped entirely; stage3 should run
+    expect(result.stage3).toBeDefined()
+  })
+
+  it('blocks stage3 when agent fails calibration threshold', async () => {
+    const ku = makeSimpleKU()
+    const graph = new _RelGraph()
+    graph.addKU(ku)
+
+    // An agent that always returns garbage — will fail calibration
+    const badAgent = {
+      id: 'bad', model: 'bad-model',
+      async call(_s: string, _u: string) { return '{"verdict":"unknown"}' },
+    }
+    const gov = createDefaultGovernanceState()
+    gov.parameters.minCalibrationAccuracy = 0.99  // near-impossible threshold
+
+    const result = await runPipeline(ku, graph, {
+      mockStage1: true,
+      runStage3: true,
+      agents: [badAgent],
+      governance: gov,
+    })
+    // All agents filtered out — stage3 should be undefined
+    expect(result.stage3).toBeUndefined()
+  })
+
+  it('passes stage3 when agent meets calibration threshold', async () => {
+    const ku = makeSimpleKU()
+    const graph = new _RelGraph()
+    graph.addKU(ku)
+
+    // A perfect mock agent: always returns the expected battery answers
+    // The battery alternates confirmed/disputed; build an agent that always
+    // returns 'confirmed' — it will score 50% (10/20), which passes a 0.4 threshold
+    const okAgent = createMockAgent('ok', 'mock', 'confirm')
+    const gov = createDefaultGovernanceState()
+    gov.parameters.minCalibrationAccuracy = 0.4
+
+    const result = await runPipeline(ku, graph, {
+      mockStage1: true,
+      runStage3: true,
+      agents: [okAgent],
+      governance: gov,
+    })
+    expect(result.stage3).toBeDefined()
   })
 })

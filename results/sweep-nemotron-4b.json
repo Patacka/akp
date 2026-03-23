@@ -1,0 +1,64 @@
+{
+  "label": "Nemotron-4B",
+  "janModelId": "NVIDIA-Nemotron-3-Nano-4B-IQ4_XS",
+  "timestamp": "2026-03-23T10:27:28.528Z",
+  "results": {
+    "E1": {
+      "experimentId": "E1-consensus-formation",
+      "durationMs": 106730,
+      "rounds": 10,
+      "totalCommits": 258,
+      "totalReveals": 258,
+      "totalContributions": 5,
+      "verdictAccuracyRate": 0.9922480620155039,
+      "revealSuccessRate": 1,
+      "meanConsensusLatencyRounds": 1,
+      "reputationGini": 0.3696969696969697,
+      "blacklistRate": 0.4,
+      "graduationRate": 0.6,
+      "meanFinalConfidence": 0.2866666666666666,
+      "reputationByAccuracy": {
+        "correctMean": 1,
+        "incorrectMean": -10
+      }
+    },
+    "E2": {
+      "experimentId": "E2-adversarial-detection",
+      "durationMs": 133520,
+      "rounds": 15,
+      "totalCommits": 366,
+      "totalReveals": 366,
+      "totalContributions": 5,
+      "verdictAccuracyRate": 0.9808743169398907,
+      "revealSuccessRate": 1,
+      "meanConsensusLatencyRounds": 1,
+      "reputationGini": 0.21395348837209302,
+      "blacklistRate": 0.2,
+      "graduationRate": 0.8,
+      "meanFinalConfidence": 0.5366666666666666,
+      "reputationByAccuracy": {
+        "correctMean": 1,
+        "incorrectMean": -10
+      }
+    },
+    "E7": {
+      "experimentId": "E7-contradiction-injection",
+      "durationMs": 13965,
+      "rounds": 12,
+      "totalCommits": 246,
+      "totalReveals": 246,
+      "totalContributions": 2,
+      "verdictAccuracyRate": 0.9105691056910569,
+      "revealSuccessRate": 1,
+      "meanConsensusLatencyRounds": 1,
+      "reputationGini": 0.29500580720092917,
+      "blacklistRate": 0.2857142857142857,
+      "graduationRate": 1,
+      "meanFinalConfidence": 0.43625,
+      "reputationByAccuracy": {
+        "correctMean": 1,
+        "incorrectMean": -10
+      }
+    }
+  }
+}

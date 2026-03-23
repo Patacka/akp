@@ -7,6 +7,7 @@ import { runReplication, type ReplicationAgent, type ReplicationRunResult } from
 import { ravVerify, type EntailmentChecker, type RAVResult, type RAVOptions } from './stage3-rav.js'
 import { computeConfidence, computeMaturity, computeMaturityFromReplications, computeMaxAchievableConfidence, DEFAULT_WEIGHTS, type PipelineScores, type ConfidenceWeights } from '../core/confidence.js'
 import type { GovernanceState } from '../core/governance.js'
+import { runCalibration } from './calibration.js'
 
 export interface PipelineResult {
   stage1: Stage1Result
@@ -62,7 +63,17 @@ export async function runPipeline(
   // Stage 3: Independent corroboration (optional, LLM-opinion path)
   let stage3: Stage3Result | undefined
   if (options.runStage3 && options.agents && options.agents.length > 0) {
-    stage3 = await runStage3(ku, options.agents)
+    const minAccuracy = options.governance?.parameters?.minCalibrationAccuracy ?? 0
+    let eligibleAgents = options.agents
+    if (minAccuracy > 0) {
+      const results = await Promise.all(
+        options.agents.map(agent => runCalibration(agent, minAccuracy))
+      )
+      eligibleAgents = options.agents.filter((_, i) => results[i].passesThreshold)
+    }
+    if (eligibleAgents.length > 0) {
+      stage3 = await runStage3(ku, eligibleAgents)
+    }
   }
 
   // Phase 5: Replication-based verification

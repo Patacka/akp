@@ -4,10 +4,13 @@ import { mkdirSync } from 'fs'
 import { KUStore } from '../../src/core/store.js'
 import { RelationGraph } from '../../src/core/graph.js'
 import { createRpcServer } from '../../src/api/rpc.js'
+import { generateIdentity, signBytes, canonicalReviewSubmitPayload } from '../../src/core/identity.js'
 
 let server: ReturnType<typeof import('http').createServer>
 let port: number
 let store: KUStore
+let reviewerDid: string
+let reviewerPrivateKeyHex: string
 
 beforeAll(async () => {
   mkdirSync('C:/Temp/akp-test-rpc', { recursive: true })
@@ -20,6 +23,9 @@ beforeAll(async () => {
       resolve()
     })
   })
+  const identity = await generateIdentity()
+  reviewerDid = identity.did
+  reviewerPrivateKeyHex = identity.privateKeyHex
 })
 
 afterAll(() => {
@@ -80,12 +86,17 @@ describe('JSON-RPC API', () => {
       summary: 'to be reviewed',
     })
     const kuId = createRes.result.kuId
+    const signature = await signBytes(
+      canonicalReviewSubmitPayload({ kuId, claimIds: [], verdict: 'confirmed', reviewerDid }),
+      reviewerPrivateKeyHex
+    )
     const reviewRes = await rpc('akp.review.submit', {
       kuId,
       claimIds: [],
       verdict: 'confirmed',
-      reviewerDid: 'did:key:reviewer',
+      reviewerDid,
       weight: 0.8,
+      signature,
     })
     expect(reviewRes.result).toBeDefined()
     expect(reviewRes.result.newConfidence).toBeGreaterThanOrEqual(0)

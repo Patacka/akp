@@ -177,6 +177,12 @@ export const GovernanceParametersSchema = z.object({
    * 0 = disabled (dev mode). Recommended production value: 3.
    */
   minReviewCount: z.number().int().min(0).default(0),
+  /**
+   * Minimum fraction of calibration battery claims an LLM agent must answer correctly
+   * before its Stage 3 verdicts are counted. 0.0 = disabled (any LLM participates).
+   * Recommended production value: 0.80.
+   */
+  minCalibrationAccuracy: z.number().min(0).max(1).default(0),
 })
 
 export const GovernanceStateSchema = z.object({
@@ -431,9 +437,8 @@ export class GovernanceEngine {
     // low a bar — gate them behind rule_change (quorum=7, 67%, 14-day TTL).
     //
     // graduationThreshold / proposalReputationBond — Sybil cost floor
-    // commitWindowMinutes / commitWindowMinCount    — commit-reveal timing integrity
-    // minAgeDays / minReviewCount                  — reviewer age/activity gates
-    // quorums / thresholds                         — the governance quorum itself
+    // Scalar Sybil-resistance gates are locked via parameter_change; all other
+    // parameters (including quorums.* and thresholds.*) can be tuned by governance.
     const IMMUTABLE_VIA_PARAMETER_CHANGE = new Set([
       'graduationThreshold',
       'proposalReputationBond',
@@ -441,8 +446,7 @@ export class GovernanceEngine {
       'commitWindowMinCount',
       'minAgeDays',
       'minReviewCount',
-      'quorums',
-      'thresholds',
+      'minCalibrationAccuracy',
     ])
     if (IMMUTABLE_VIA_PARAMETER_CHANGE.has(parts[0])) {
       throw new Error(

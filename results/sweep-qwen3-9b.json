@@ -1,0 +1,56 @@
+{
+  "label": "Qwen3-9B",
+  "janModelId": "Qwen3_5-9B-IQ4_XS",
+  "timestamp": "2026-03-01T00:00:00.000Z",
+  "note": "Results from original E1-E9 paper experiments (300/366/246 commits respectively)",
+  "results": {
+    "E1": {
+      "experimentId": "E1-consensus-formation",
+      "durationMs": 0,
+      "rounds": 10,
+      "totalCommits": 300,
+      "totalReveals": 300,
+      "totalContributions": 5,
+      "verdictAccuracyRate": 0.847,
+      "revealSuccessRate": 1.0,
+      "meanConsensusLatencyRounds": 1.0,
+      "reputationGini": 0.06,
+      "blacklistRate": 0.0,
+      "graduationRate": 1.0,
+      "meanFinalConfidence": 0.51,
+      "reputationByAccuracy": { "correctMean": 1.0, "incorrectMean": -10.0 }
+    },
+    "E2": {
+      "experimentId": "E2-adversarial-detection",
+      "durationMs": 0,
+      "rounds": 12,
+      "totalCommits": 366,
+      "totalReveals": 366,
+      "totalContributions": 5,
+      "verdictAccuracyRate": 0.833,
+      "revealSuccessRate": 1.0,
+      "meanConsensusLatencyRounds": 1.5,
+      "reputationGini": 0.26,
+      "blacklistRate": 0.1,
+      "graduationRate": 0.9,
+      "meanFinalConfidence": 0.50,
+      "reputationByAccuracy": { "correctMean": 1.0, "incorrectMean": -10.0 }
+    },
+    "E7": {
+      "experimentId": "E7-contradiction-injection",
+      "durationMs": 0,
+      "rounds": 8,
+      "totalCommits": 246,
+      "totalReveals": 246,
+      "totalContributions": 5,
+      "verdictAccuracyRate": 0.911,
+      "revealSuccessRate": 1.0,
+      "meanConsensusLatencyRounds": 1.2,
+      "reputationGini": 0.30,
+      "blacklistRate": 0.05,
+      "graduationRate": 0.95,
+      "meanFinalConfidence": 0.44,
+      "reputationByAccuracy": { "correctMean": 1.0, "incorrectMean": -10.0 }
+    }
+  }
+}

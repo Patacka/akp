@@ -122,22 +122,37 @@ export async function runStage3(
   const primaryClaim = ku.structured.claims[0]
   const variant = options?.variant ?? (primaryClaim ? determineVariant(primaryClaim) : 'triangulation')
 
+  const today = new Date().toISOString().slice(0, 10)
+  const kuCreated = ku.meta.created.slice(0, 10)
+
   const claimsText = ku.structured.claims
-    .map(c => `- [${c.type}] ${c.subject} ${c.predicate} ${JSON.stringify(c.object)} (confidence: ${c.confidence})`)
+    .map(c => {
+      let line = `- [${c.type}] ${c.subject} ${c.predicate} ${JSON.stringify(c.object)} (confidence: ${c.confidence})`
+      if (c.validUntil) line += ` [valid until: ${c.validUntil.slice(0, 10)}]`
+      return line
+    })
     .join('\n')
+
+  const hasTemporalClaims = ku.structured.claims.some(
+    c => c.type === 'temporal' || c.type === 'quantitative' || c.validUntil
+  )
+
+  const temporalContext = hasTemporalClaims
+    ? `\n\nTemporal context: this KU was created on ${kuCreated}. Today's date is ${today}. If any claim has a "valid until" date that is in the past, the claim is stale and should be disputed.`
+    : ''
 
   let systemPrompt: string
   let userPrompt: string
 
   if (variant === 'reproduction') {
     systemPrompt = `You are an independent scientific verifier. Your task is to verify quantitative claims by independently computing or researching the answer. Respond with JSON: { "verdict": "confirmed"|"disputed"|"uncertain", "confidence": 0-1, "reasoning": "...", "sources": ["..."] }`
-    userPrompt = `Please independently verify these claims:\n${claimsText}\n\nDo not use the original sources. Find your own evidence.`
+    userPrompt = `Please independently verify these claims:\n${claimsText}${temporalContext}\n\nDo not use the original sources. Find your own evidence.`
   } else if (variant === 'falsification') {
     systemPrompt = `You are a critical analyst tasked with finding flaws in claims. Look for counterexamples, logical errors, and alternative explanations. Respond with JSON: { "verdict": "confirmed"|"disputed"|"uncertain", "confidence": 0-1, "reasoning": "...", "counterexamples": ["..."] }`
-    userPrompt = `Try to falsify these claims. Find counterexamples or flaws:\n${claimsText}`
+    userPrompt = `Try to falsify these claims. Find counterexamples or flaws:\n${claimsText}${temporalContext}`
   } else {
     systemPrompt = `You are an independent fact-checker. Your task is to find corroborating evidence for claims WITHOUT using the originally cited sources. Respond with JSON: { "verdict": "confirmed"|"disputed"|"uncertain", "confidence": 0-1, "reasoning": "...", "sources": ["..."] }`
-    userPrompt = `Find independent evidence for or against these claims:\n${claimsText}\n\nContext: ${ku.narrative.summary}`
+    userPrompt = `Find independent evidence for or against these claims:\n${claimsText}${temporalContext}\n\nContext: ${ku.narrative.summary}`
   }
 
   // Run agents in parallel (simulated commit-reveal)

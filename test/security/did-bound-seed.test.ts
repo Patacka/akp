@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
-import { computeDidBoundSeed } from '../../src/core/identity.js'
+import { computeDidBoundSeed, signBytes, canonicalReviewSubmitPayload } from '../../src/core/identity.js'
 import { KUStore } from '../../src/core/store.js'
 import { RelationGraph } from '../../src/core/graph.js'
 import { createKU, createProvenance } from '../../src/core/ku.js'
@@ -67,6 +67,11 @@ describe('akp.review.submit seed enforcement', () => {
   let kuId: string
   let claimId: string
   let reviewerDid: string
+  let reviewerPrivateKeyHex: string
+
+  async function sign(kuId: string, claimIds: string[], verdict: string, did: string, privateKeyHex: string): Promise<string> {
+    return signBytes(canonicalReviewSubmitPayload({ kuId, claimIds, verdict, reviewerDid: did }), privateKeyHex)
+  }
 
   async function rpc(method: string, params: unknown) {
     return new Promise<{ result?: unknown; error?: { code: number; message: string } }>((resolve, reject) => {
@@ -96,6 +101,7 @@ describe('akp.review.submit seed enforcement', () => {
     // Create a KU with a seedable claim
     const identity = await generateIdentity()
     reviewerDid = identity.did
+    reviewerPrivateKeyHex = identity.privateKeyHex
     claimId = uuidv7()
 
     const ku = createKU({
@@ -131,8 +137,9 @@ describe('akp.review.submit seed enforcement', () => {
 
   it('accepts a review with the correct DID-bound seed', async () => {
     const seed = computeDidBoundSeed(claimId, reviewerDid)
+    const signature = await sign(kuId, [claimId], 'confirmed', reviewerDid, reviewerPrivateKeyHex)
     const res = await rpc('akp.review.submit', {
-      kuId, claimIds: [claimId], verdict: 'confirmed', reviewerDid, seed,
+      kuId, claimIds: [claimId], verdict: 'confirmed', reviewerDid, seed, signature,
     })
     expect(res.error).toBeUndefined()
     expect(res.result).toHaveProperty('newConfidence')
@@ -140,8 +147,9 @@ describe('akp.review.submit seed enforcement', () => {
 
   it('rejects a review with a wrong seed and slashes the DID', async () => {
     const wrongSeed = computeDidBoundSeed(claimId, reviewerDid) + 1
+    const signature = await sign(kuId, [claimId], 'confirmed', reviewerDid, reviewerPrivateKeyHex)
     const res = await rpc('akp.review.submit', {
-      kuId, claimIds: [claimId], verdict: 'confirmed', reviewerDid, seed: wrongSeed,
+      kuId, claimIds: [claimId], verdict: 'confirmed', reviewerDid, seed: wrongSeed, signature,
     })
     expect(res.error).toBeDefined()
     expect(res.error!.message).toMatch(/Invalid DID-bound seed/)
@@ -153,8 +161,9 @@ describe('akp.review.submit seed enforcement', () => {
   })
 
   it('rejects a review missing the seed entirely', async () => {
+    const signature = await sign(kuId, [claimId], 'confirmed', reviewerDid, reviewerPrivateKeyHex)
     const res = await rpc('akp.review.submit', {
-      kuId, claimIds: [claimId], verdict: 'confirmed', reviewerDid,
+      kuId, claimIds: [claimId], verdict: 'confirmed', reviewerDid, signature,
       // no seed field
     })
     expect(res.error).toBeDefined()

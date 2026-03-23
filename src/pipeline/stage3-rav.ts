@@ -16,6 +16,22 @@
 
 import type { KnowledgeUnit, Claim, Source } from '../core/ku.js'
 
+// ── Relevance scoring ─────────────────────────────────────────────────────────
+
+/**
+ * Compute term-overlap relevance: fraction of query tokens that appear in text,
+ * clamped to [0.1, 1.0]. Tokens are lowercased and stripped of punctuation.
+ */
+function termOverlapScore(query: string, text: string): number {
+  const tokenize = (s: string) =>
+    s.toLowerCase().replace(/[^\w\s]/g, ' ').split(/\s+/).filter(t => t.length > 1)
+  const queryTokens = tokenize(query)
+  if (queryTokens.length === 0) return 0.5
+  const textTokens = new Set(tokenize(text))
+  const matched = queryTokens.filter(t => textTokens.has(t)).length
+  return Math.max(0.1, Math.min(1.0, matched / queryTokens.length))
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface RetrievedDocument {
@@ -115,10 +131,10 @@ export async function retrieveArxiv(
   if (!res.ok) throw new Error(`ArXiv API error: ${res.status}`)
 
   const xml = await res.text()
-  return parseArxivAtom(xml)
+  return parseArxivAtom(xml, query)
 }
 
-function parseArxivAtom(xml: string): RetrievedDocument[] {
+function parseArxivAtom(xml: string, query: string): RetrievedDocument[] {
   const docs: RetrievedDocument[] = []
   const entries = xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)
 
@@ -138,7 +154,7 @@ function parseArxivAtom(xml: string): RetrievedDocument[] {
       },
       title,
       abstract: summary.slice(0, 1500),
-      relevanceScore: 0.7,  // ArXiv sorts by relevance; we assign a fixed prior
+      relevanceScore: termOverlapScore(query, title + ' ' + summary),
     })
   }
 
@@ -191,6 +207,8 @@ export async function retrievePubMed(
 
   return ids.map(id => {
     const doc = result[id] ?? {}
+    const title = doc.title ?? `PubMed ${id}`
+    const abstract = doc.source ?? ''
     return {
       source: {
         id,
@@ -199,9 +217,9 @@ export async function retrievePubMed(
         title: doc.title,
         year: doc.sortpubdate ? parseInt(doc.sortpubdate.slice(0, 4)) : undefined,
       },
-      title: doc.title ?? `PubMed ${id}`,
-      abstract: doc.source ?? '',
-      relevanceScore: 0.7,
+      title,
+      abstract,
+      relevanceScore: termOverlapScore(query, title + ' ' + abstract),
     }
   }).filter(d => d.title)
 }
@@ -255,19 +273,22 @@ export async function retrieveWikidata(
     }> }
   }
 
-  return (data.results?.bindings ?? []).map((b, i) => ({
-    source: {
-      id: `wd-${i}`,
-      type: 'other' as const,
-      value: b.item?.value ?? '',
-      title: b.itemLabel?.value,
-    },
-    title: b.itemLabel?.value ?? 'Wikidata entity',
-    abstract: b.description?.value ?? '',
-    relevanceScore: 0.6,
-  })).filter(d => d.abstract.length > 0)
-
-  void predicate  // safePredicate computed but used only for future expansion
+  const wikidataQuery = `${subject} ${predicate}`
+  return (data.results?.bindings ?? []).map((b, i) => {
+    const title = b.itemLabel?.value ?? 'Wikidata entity'
+    const abstract = b.description?.value ?? ''
+    return {
+      source: {
+        id: `wd-${i}`,
+        type: 'other' as const,
+        value: b.item?.value ?? '',
+        title,
+      },
+      title,
+      abstract,
+      relevanceScore: termOverlapScore(wikidataQuery, title + ' ' + abstract),
+    }
+  }).filter(d => d.abstract.length > 0)
 }
 
 // ── LLM Entailment Checker ───────────────────────────────────────────────────

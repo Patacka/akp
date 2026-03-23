@@ -1,0 +1,64 @@
+{
+  "label": "Llama-3.1-8B",
+  "janModelId": "Llama-3_1-8B-Instruct-IQ4_XS",
+  "timestamp": "2026-03-23T10:50:35.123Z",
+  "results": {
+    "E1": {
+      "experimentId": "E1-consensus-formation",
+      "durationMs": 88236,
+      "rounds": 10,
+      "totalCommits": 300,
+      "totalReveals": 300,
+      "totalContributions": 5,
+      "verdictAccuracyRate": 1,
+      "revealSuccessRate": 1,
+      "meanConsensusLatencyRounds": 1,
+      "reputationGini": 0.05714285714285714,
+      "blacklistRate": 0,
+      "graduationRate": 1,
+      "meanFinalConfidence": 0.5366666666666666,
+      "reputationByAccuracy": {
+        "correctMean": 1,
+        "incorrectMean": null
+      }
+    },
+    "E2": {
+      "experimentId": "E2-adversarial-detection",
+      "durationMs": 107306,
+      "rounds": 15,
+      "totalCommits": 366,
+      "totalReveals": 366,
+      "totalContributions": 5,
+      "verdictAccuracyRate": 0.9836065573770492,
+      "revealSuccessRate": 1,
+      "meanConsensusLatencyRounds": 1,
+      "reputationGini": 0.21395348837209302,
+      "blacklistRate": 0.2,
+      "graduationRate": 0.8,
+      "meanFinalConfidence": 0.5366666666666666,
+      "reputationByAccuracy": {
+        "correctMean": 1,
+        "incorrectMean": -10
+      }
+    },
+    "E7": {
+      "experimentId": "E7-contradiction-injection",
+      "durationMs": 13229,
+      "rounds": 12,
+      "totalCommits": 246,
+      "totalReveals": 246,
+      "totalContributions": 2,
+      "verdictAccuracyRate": 0.9105691056910569,
+      "revealSuccessRate": 1,
+      "meanConsensusLatencyRounds": 1,
+      "reputationGini": 0.29500580720092917,
+      "blacklistRate": 0.2857142857142857,
+      "graduationRate": 1,
+      "meanFinalConfidence": 0.43625,
+      "reputationByAccuracy": {
+        "correctMean": 1,
+        "incorrectMean": -10
+      }
+    }
+  }
+}

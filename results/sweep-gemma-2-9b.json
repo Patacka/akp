@@ -1,0 +1,64 @@
+{
+  "label": "Gemma-2-9B",
+  "janModelId": "gemma-2-9b-it-abliterated-IQ4_XS",
+  "timestamp": "2026-03-23T11:02:26.684Z",
+  "results": {
+    "E1": {
+      "experimentId": "E1-consensus-formation",
+      "durationMs": 135493,
+      "rounds": 10,
+      "totalCommits": 300,
+      "totalReveals": 300,
+      "totalContributions": 5,
+      "verdictAccuracyRate": 0.6666666666666666,
+      "revealSuccessRate": 1,
+      "meanConsensusLatencyRounds": 1,
+      "reputationGini": 0.05714285714285714,
+      "blacklistRate": 0,
+      "graduationRate": 1,
+      "meanFinalConfidence": 0.47,
+      "reputationByAccuracy": {
+        "correctMean": 1,
+        "incorrectMean": null
+      }
+    },
+    "E2": {
+      "experimentId": "E2-adversarial-detection",
+      "durationMs": 399369,
+      "rounds": 15,
+      "totalCommits": 366,
+      "totalReveals": 366,
+      "totalContributions": 5,
+      "verdictAccuracyRate": 0.6557377049180327,
+      "revealSuccessRate": 1,
+      "meanConsensusLatencyRounds": 1,
+      "reputationGini": 0.21395348837209302,
+      "blacklistRate": 0.2,
+      "graduationRate": 0.8,
+      "meanFinalConfidence": 0.47,
+      "reputationByAccuracy": {
+        "correctMean": 1,
+        "incorrectMean": -10
+      }
+    },
+    "E7": {
+      "experimentId": "E7-contradiction-injection",
+      "durationMs": 14463,
+      "rounds": 12,
+      "totalCommits": 246,
+      "totalReveals": 246,
+      "totalContributions": 2,
+      "verdictAccuracyRate": 0.9105691056910569,
+      "revealSuccessRate": 1,
+      "meanConsensusLatencyRounds": 1,
+      "reputationGini": 0.29500580720092917,
+      "blacklistRate": 0.2857142857142857,
+      "graduationRate": 1,
+      "meanFinalConfidence": 0.43625,
+      "reputationByAccuracy": {
+        "correctMean": 1,
+        "incorrectMean": -10
+      }
+    }
+  }
+}
