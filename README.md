@@ -58,9 +58,11 @@ node.close()
 ```bash
 git clone https://github.com/Patacka/akp
 cd akp
-npm run setup   # install, build, generate identity
-npm start       # http://localhost:3000
+npm run setup                    # install, build, generate identity
+AKP_API_KEY=secret npm start    # http://localhost:3000
 ```
+
+If `AKP_API_KEY` is not set, a random key is generated and printed on each start — set it explicitly so it persists across restarts.
 
 ---
 
