@@ -26,6 +26,8 @@ import { createKU, createProvenance, createClaim } from './core/ku.js'
 import { SyncPeer } from './sync/peer.js'
 import { PeerTable } from './sync/discovery.js'
 import { createRpcServer } from './api/rpc.js'
+import { DHTPeer } from './dht/dht.js'
+import { seedsFor } from './dht/seeds.js'
 import type { KnowledgeUnit } from './core/ku.js'
 
 // ── Public API types ──────────────────────────────────────────────────────────
@@ -65,6 +67,33 @@ export interface AKPNodeOptions {
 
   /** Network identifier. Peers on a different network are rejected. Default: 'mainnet' */
   networkId?: string
+
+  /**
+   * Enable Kademlia DHT peer discovery. When true, the node joins the
+   * distributed hash table and discovers sync peers automatically — no
+   * hardcoded relay URLs required.
+   *
+   * Full participation (serving DHT routes + accepting sync connections)
+   * requires port > 0 and syncPort > 0 with publicly reachable URLs.
+   * Outbound-only agents can still query the DHT to find peers.
+   *
+   * Default: false
+   */
+  dht?: boolean
+
+  /**
+   * Public HTTP base URL where /dht/* endpoints are reachable.
+   * Required for full DHT participation. Leave unset for outbound-only.
+   * E.g. 'https://akp-relay-1.fly.dev' or 'http://myserver:3000'
+   */
+  publicHttpUrl?: string
+
+  /**
+   * Public WebSocket URL that other nodes use to connect for sync.
+   * Required for full DHT participation. Leave unset for outbound-only.
+   * E.g. 'wss://akp-relay-1.fly.dev' or 'ws://myserver:3001'
+   */
+  publicSyncUrl?: string
 
   /**
    * Skip RFC-1918 address filtering and other prod-only guards.
@@ -110,6 +139,7 @@ export class AKPNode {
   private _peerTable: PeerTable
   private _sync?: SyncPeer
   private _rpc?: ReturnType<typeof createRpcServer>
+  private _dht?: DHTPeer
   private _networkId: string
 
   private constructor(
@@ -165,10 +195,25 @@ export class AKPNode {
       node._sync.startServer()
     }
 
+    // DHT peer — create early so routes can be mounted before HTTP listen
+    if (options.dht) {
+      node._dht = new DHTPeer({
+        did:       identity.did,
+        syncUrl:   options.publicSyncUrl ?? '',
+        httpUrl:   options.publicHttpUrl ?? '',
+        networkId,
+      })
+    }
+
     // Optional: HTTP RPC server
     const port = options.port ?? 0
     if (port > 0) {
-      node._rpc = createRpcServer({ store, graph, port })
+      const rpc = createRpcServer({ store, graph, port })
+      // Mount DHT routes onto the same Express app before listening
+      if (node._dht && options.publicHttpUrl) {
+        node._dht.mount(rpc.app)
+      }
+      node._rpc = rpc
       node._rpc.listen()
     }
 
@@ -189,6 +234,34 @@ export class AKPNode {
         node._sync.connectTo(url).catch(() => {
           // Peer unreachable at boot — non-fatal, will retry on next gossip cycle
         })
+      }
+    }
+
+    // DHT bootstrap: seed routing table + discover sync peers
+    if (options.dht && node._dht) {
+      const dht = node._dht
+      const seeds = seedsFor(networkId)
+      const seedHttpUrls = [
+        ...seeds.map(s => s.httpUrl),
+        ...peers.map(url =>
+          url.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://')
+        ),
+      ]
+
+      if (seedHttpUrls.length > 0) {
+        dht.bootstrap(seedHttpUrls).then(async () => {
+          const syncUrls = await dht.findPeers()
+          if (!node._sync && syncUrls.length > 0) {
+            node._sync = new SyncPeer({
+              store, port: 0, identity, networkId,
+              onKUSynced: (ku) => graph.addKU(ku),
+            })
+          }
+          for (const url of syncUrls) {
+            node._sync?.connectTo(url).catch(() => { /* non-fatal */ })
+          }
+          await dht.announce()
+        }).catch(() => { /* DHT bootstrap failed — offline, retry later */ })
       }
     }
 
@@ -279,7 +352,7 @@ export class AKPNode {
    * Connect to a peer node.
    * Triggers an immediate sync of all KUs this peer hasn't seen.
    */
-  async connect(url: string): Promise<void> {
+   async connect(url: string): Promise<void> {
     if (!this._sync) {
       this._sync = new SyncPeer({
         store: this._store,
@@ -295,6 +368,28 @@ export class AKPNode {
   /** Return all known peers from the local peer table. */
   peers() {
     return this._peerTable.all()
+  }
+
+  /**
+   * Return contacts from the DHT routing table.
+   * Only populated when dht: true was passed to start().
+   */
+  dhtContacts() {
+    return this._dht?.contacts() ?? []
+  }
+
+  /** DHT routing table size — useful for diagnostics. */
+  dhtSize() {
+    return this._dht?.routingTableSize() ?? 0
+  }
+
+  /**
+   * Manually trigger a DHT peer discovery cycle.
+   * Useful when the network grows and you want to find new peers.
+   */
+  async dhtDiscover(): Promise<string[]> {
+    if (!this._dht) return []
+    return this._dht.findPeers()
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
