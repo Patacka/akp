@@ -55,7 +55,7 @@ export default function KUDetail({ kuId }: KUDetailProps) {
 
     if (!ku) return
 
-    const claimIds = ku.structured.claims.map((c) => c.id)
+    const claimIds = (ku.structured?.claims ?? []).map((c) => c.id)
 
     setReviewLoading(true)
     setReviewError(null)
@@ -161,8 +161,8 @@ export default function KUDetail({ kuId }: KUDetailProps) {
 
       {/* Claims */}
       <div className="section">
-        <div className="section-title">Claims ({ku.structured.claims.length})</div>
-        {ku.structured.claims.length === 0 ? (
+        <div className="section-title">Claims ({(ku.structured?.claims ?? []).length})</div>
+        {(ku.structured?.claims ?? []).length === 0 ? (
           <div className="empty-state" style={{ padding: '24px 0' }}>
             <div className="empty-state-desc">No claims in this knowledge unit.</div>
           </div>
@@ -179,7 +179,7 @@ export default function KUDetail({ kuId }: KUDetailProps) {
                 </tr>
               </thead>
               <tbody>
-                {ku.structured.claims.map((claim) => (
+                {(ku.structured?.claims ?? []).map((claim) => (
                   <tr key={claim.id}>
                     <td>
                       <span className="badge badge-proposed" style={{ textTransform: 'none' }}>
@@ -204,13 +204,13 @@ export default function KUDetail({ kuId }: KUDetailProps) {
 
       {/* Provenance */}
       <div className="section">
-        <div className="section-title">Provenance ({ku.provenance.length})</div>
-        {ku.provenance.length === 0 ? (
+        <div className="section-title">Provenance ({(ku.provenance ?? []).length})</div>
+        {(ku.provenance ?? []).length === 0 ? (
           <div className="empty-state" style={{ padding: '24px 0' }}>
             <div className="empty-state-desc">No provenance records.</div>
           </div>
         ) : (
-          ku.provenance.map((prov) => (
+          (ku.provenance ?? []).map((prov) => (
             <div className="provenance-item" key={prov.id}>
               <div className="provenance-meta">
                 <span
@@ -244,8 +244,8 @@ export default function KUDetail({ kuId }: KUDetailProps) {
 
       {/* Reviews */}
       <div className="section">
-        <div className="section-title">Reviews ({ku.reviews.length})</div>
-        {ku.reviews.length === 0 ? (
+        <div className="section-title">Reviews ({(ku.reviews ?? []).length})</div>
+        {(ku.reviews ?? []).length === 0 ? (
           <div className="empty-state" style={{ padding: '24px 0' }}>
             <div className="empty-state-desc">No reviews submitted yet. Be the first to review this KU.</div>
           </div>
@@ -263,7 +263,7 @@ export default function KUDetail({ kuId }: KUDetailProps) {
                 </tr>
               </thead>
               <tbody>
-                {ku.reviews.map((rev) => (
+                {(ku.reviews ?? []).map((rev) => (
                   <tr key={rev.id}>
                     <td>
                       <span className="did-truncated" title={rev.reviewerDid}>
