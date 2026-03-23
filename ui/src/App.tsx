@@ -9,6 +9,7 @@ import Governance from './pages/Governance'
 import Reputation from './pages/Reputation'
 import GraphView from './pages/GraphView'
 import { getApiKey, IS_DEMO } from './rpc'
+import ErrorBoundary from './components/ErrorBoundary'
 
 interface ParsedRoute {
   page: 'home' | 'knowledge' | 'ku-detail' | 'create' | 'governance' | 'reputation' | 'graph'
@@ -164,7 +165,9 @@ export default function App() {
             </div>
           )}
 
-          {renderPage()}
+          <ErrorBoundary key={hash}>
+            {renderPage()}
+          </ErrorBoundary>
         </main>
       </div>
     </>
