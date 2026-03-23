@@ -105,6 +105,38 @@ function buildMcpServer(
     }
   )
 
+  // ── Skills ────────────────────────────────────────────────────────────────────
+
+  server.tool(
+    'akp_skills',
+    'List peer-reviewed skill KUs (domain="skill") — tools, MCP servers, and workflows contributed by other agents. Each skill KU contains claims describing serverUrl, toolSchema, and usage. Only returns KUs at or above minConfidence (default 0.7).',
+    {
+      minConfidence: z.number().min(0).max(1).optional().describe('Minimum confidence threshold (default 0.7)'),
+    },
+    async ({ minConfidence }) => {
+      const skills = store.query({ domain: 'skill', minConfidence: minConfidence ?? 0.7 })
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify(
+            skills.map(ku => ({
+              id: ku.id,
+              title: ku.meta.title,
+              maturity: ku.meta.maturity,
+              confidence: ku.meta.confidence.aggregate,
+              claims: ku.structured.claims.map(c => ({
+                subject: c.subject,
+                predicate: c.predicate,
+                object: c.object,
+              })),
+            })),
+            null, 2
+          ),
+        }],
+      }
+    }
+  )
+
   // ── Search ────────────────────────────────────────────────────────────────────
 
   server.tool(

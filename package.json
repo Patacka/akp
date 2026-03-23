@@ -17,7 +17,9 @@
   "scripts": {
     "setup": "node scripts/setup.mjs",
     "start": "node dist/cli/akp.js start",
+    "relay": "tsx src/relay.ts",
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "dev": "tsx watch src/cli/akp.ts start --mock-stage1",
     "test": "vitest run",
     "test:watch": "vitest",
