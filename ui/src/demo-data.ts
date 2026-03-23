@@ -48,8 +48,8 @@ export const DEMO_KUS: KU[] = [
       ],
     },
     provenance: [{
-      id: 'p-0001', did: 'did:key:z6MkAgent1', type: 'agent', method: 'literature_review',
-      timestamp: '2026-01-10T09:00:00Z',
+      id: 'p-0001', agent: { did: 'did:key:z6MkAgent1', type: 'agent' }, method: 'literature_review',
+      generatedAt: '2026-01-10T09:00:00Z',
       sources: [{ id: 's1', type: 'doi', value: '10.1007/BF02345020' }],
     }],
     reviews: [
@@ -83,8 +83,8 @@ export const DEMO_KUS: KU[] = [
       ],
     },
     provenance: [{
-      id: 'p-0002', did: 'did:key:z6MkAgent2', type: 'agent', method: 'literature_review',
-      timestamp: '2026-01-18T11:00:00Z',
+      id: 'p-0002', agent: { did: 'did:key:z6MkAgent2', type: 'agent' }, method: 'literature_review',
+      generatedAt: '2026-01-18T11:00:00Z',
       sources: [{ id: 's2', type: 'doi', value: '10.1126/science.1225829' }],
     }],
     reviews: [
@@ -117,8 +117,8 @@ export const DEMO_KUS: KU[] = [
       ],
     },
     provenance: [{
-      id: 'p-0003', did: 'did:key:z6MkAgent3', type: 'agent', method: 'observation',
-      timestamp: '2026-02-03T08:00:00Z',
+      id: 'p-0003', agent: { did: 'did:key:z6MkAgent3', type: 'agent' }, method: 'observation',
+      generatedAt: '2026-02-03T08:00:00Z',
       sources: [{ id: 's3', type: 'url', value: 'https://www.claymath.org/millennium-problems/' }],
     }],
     reviews: [
@@ -150,8 +150,8 @@ export const DEMO_KUS: KU[] = [
       ],
     },
     provenance: [{
-      id: 'p-0004', did: 'did:key:z6MkAgent1', type: 'agent', method: 'literature_review',
-      timestamp: '2026-01-25T14:00:00Z',
+      id: 'p-0004', agent: { did: 'did:key:z6MkAgent1', type: 'agent' }, method: 'literature_review',
+      generatedAt: '2026-01-25T14:00:00Z',
       sources: [{ id: 's4', type: 'arxiv', value: '1706.03762' }],
     }],
     reviews: [
@@ -184,8 +184,8 @@ export const DEMO_KUS: KU[] = [
       ],
     },
     provenance: [{
-      id: 'p-0005', did: 'did:key:z6MkAgent4', type: 'agent', method: 'literature_review',
-      timestamp: '2026-02-08T10:00:00Z',
+      id: 'p-0005', agent: { did: 'did:key:z6MkAgent4', type: 'agent' }, method: 'literature_review',
+      generatedAt: '2026-02-08T10:00:00Z',
       sources: [{ id: 's5', type: 'url', value: 'https://www.britannica.com/biography/Johannes-Gutenberg' }],
     }],
     reviews: [
@@ -217,8 +217,8 @@ export const DEMO_KUS: KU[] = [
       ],
     },
     provenance: [{
-      id: 'p-0006', did: 'did:key:z6MkAgent5', type: 'agent', method: 'literature_review',
-      timestamp: '2026-02-15T09:00:00Z',
+      id: 'p-0006', agent: { did: 'did:key:z6MkAgent5', type: 'agent' }, method: 'literature_review',
+      generatedAt: '2026-02-15T09:00:00Z',
       sources: [{ id: 's6', type: 'doi', value: '10.1038/s41586-020-2798-3' }],
     }],
     reviews: [
@@ -249,8 +249,8 @@ export const DEMO_KUS: KU[] = [
       ],
     },
     provenance: [{
-      id: 'p-0007', did: 'did:key:z6MkAgent1', type: 'agent', method: 'observation',
-      timestamp: '2026-01-05T08:00:00Z',
+      id: 'p-0007', agent: { did: 'did:key:z6MkAgent1', type: 'agent' }, method: 'observation',
+      generatedAt: '2026-01-05T08:00:00Z',
       sources: [{ id: 's7', type: 'url', value: 'https://www.bipm.org/en/publications/si-brochure' }],
     }],
     reviews: [
@@ -282,8 +282,8 @@ export const DEMO_KUS: KU[] = [
       ],
     },
     provenance: [{
-      id: 'p-0008', did: 'did:key:z6MkAgent6', type: 'agent', method: 'observation',
-      timestamp: '2026-02-22T13:00:00Z',
+      id: 'p-0008', agent: { did: 'did:key:z6MkAgent6', type: 'agent' }, method: 'observation',
+      generatedAt: '2026-02-22T13:00:00Z',
       sources: [{ id: 's8', type: 'url', value: 'https://sqlite.org/mostdeployed.html' }],
     }],
     reviews: [

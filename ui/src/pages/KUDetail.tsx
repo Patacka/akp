@@ -7,7 +7,8 @@ interface KUDetailProps {
   kuId: string
 }
 
-function truncateDid(did: string): string {
+function truncateDid(did: string | undefined): string {
+  if (!did) return '—'
   if (did.length <= 20) return did
   return did.slice(0, 20) + '...'
 }
@@ -215,16 +216,16 @@ export default function KUDetail({ kuId }: KUDetailProps) {
               <div className="provenance-meta">
                 <span
                   className="did-truncated"
-                  title={prov.did}
+                  title={prov.agent?.did}
                 >
-                  {truncateDid(prov.did)}
+                  {truncateDid(prov.agent?.did)}
                 </span>
                 <span className="badge badge-proposed" style={{ textTransform: 'none' }}>
-                  {prov.type}
+                  {prov.agent?.type}
                 </span>
                 <span className="method-badge">{prov.method}</span>
                 <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                  {new Date(prov.timestamp).toLocaleDateString()}
+                  {new Date(prov.generatedAt).toLocaleDateString()}
                 </span>
               </div>
               {prov.sources && prov.sources.length > 0 && (

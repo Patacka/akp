@@ -38,10 +38,13 @@ export interface Review {
 
 export interface ProvenanceRecord {
   id: string
-  did: string
-  type: 'agent' | 'human'
+  agent: {
+    did: string
+    type: 'agent' | 'human'
+    model?: string
+  }
   method: string
-  timestamp: string
+  generatedAt: string
   sources: Array<{ id: string; type: string; value: string }>
 }
 
