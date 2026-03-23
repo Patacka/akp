@@ -92,7 +92,7 @@ export default function App() {
         if (body.requiresAuth && !getApiKey()) setShowApiKeyModal(true)
       })
       .catch(() => {
-        setServerError('Cannot connect to AKP server at localhost:3000. Make sure the backend is running.')
+        setServerError(`Cannot connect to AKP server at ${window.location.host}. Make sure the backend is running.`)
       })
   }, [])
 
