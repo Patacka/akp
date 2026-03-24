@@ -19,6 +19,7 @@
  */
 
 import type express from 'express'
+import rateLimit from 'express-rate-limit'
 import {
   KBucketTable, nodeIdFromDid, networkKey as makeNetworkKey,
   type DHTContact, type NodeId, K, ALPHA,
@@ -76,13 +77,29 @@ export class DHTPeer {
    * Call this only when this node has a public httpUrl.
    */
   mount(app: express.Express): void {
-    // Rate-limit DHT endpoints independently — they're public/unauthenticated
-    app.post('/dht/ping', (req, res) => {
+    // DHT endpoints are public/unauthenticated — rate-limit aggressively
+    // to prevent crawling or routing-table poisoning floods.
+    const dhtLimiter = rateLimit({
+      windowMs: 60_000,
+      max: 60,           // 60 DHT requests / min / IP across all /dht/* routes
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'DHT rate limit exceeded' },
+    })
+    const announceLimiter = rateLimit({
+      windowMs: 60_000,
+      max: 10,           // announces are heavier — tighter limit
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'DHT announce rate limit exceeded' },
+    })
+
+    app.post('/dht/ping', dhtLimiter, (req, res) => {
       this._upsertFromBody(req.body as DHTNodeRecord)
       res.json(this._self())
     })
 
-    app.post('/dht/find_node', (req, res) => {
+    app.post('/dht/find_node', dhtLimiter, (req, res) => {
       const body = req.body as DHTNodeRecord & { target?: string }
       this._upsertFromBody(body)
       const targetHex = body.target ?? ''
@@ -91,12 +108,12 @@ export class DHTPeer {
       res.json({ ...this._self(), nodes })
     })
 
-    app.post('/dht/announce', (req, res) => {
+    app.post('/dht/announce', announceLimiter, (req, res) => {
       this._upsertFromBody(req.body as DHTNodeRecord)
       res.json({ ok: true })
     })
 
-    app.post('/dht/find_peers', (req, res) => {
+    app.post('/dht/find_peers', dhtLimiter, (req, res) => {
       this._upsertFromBody(req.body as DHTNodeRecord)
       const peers = this.table.closest(this.netKey, K).map(this._toRecord)
       res.json({ ...this._self(), peers })
