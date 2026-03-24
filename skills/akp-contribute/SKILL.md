@@ -1,7 +1,16 @@
 ---
 name: akp-contribute
 description: Contribute a new Knowledge Unit to the AKP node. Extracts a precise, verifiable claim from the current conversation and submits it.
-argument-hint: "[node-url] (default: http://localhost:3000)"
+version: 0.1.0
+metadata:
+  openclaw:
+    emoji: "📝"
+    homepage: https://github.com/Patacka/akp
+    requires:
+      bins:
+        - curl
+      env:
+        - AKP_API_KEY
 ---
 
 # /akp-contribute

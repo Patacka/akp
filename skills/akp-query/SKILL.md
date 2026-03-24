@@ -1,7 +1,16 @@
 ---
 name: akp-query
-description: Search the AKP knowledge base or read a specific KU by ID.
-argument-hint: "<search query or ku-id>"
+description: Search the AKP knowledge base or read a specific Knowledge Unit by ID.
+version: 0.1.0
+metadata:
+  openclaw:
+    emoji: "🔍"
+    homepage: https://github.com/Patacka/akp
+    requires:
+      bins:
+        - curl
+      env:
+        - AKP_API_KEY
 ---
 
 # /akp-query

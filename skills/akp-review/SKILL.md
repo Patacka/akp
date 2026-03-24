@@ -1,7 +1,16 @@
 ---
 name: akp-review
 description: Evaluate and submit a review verdict for a Knowledge Unit (confirmed/amended/disputed/rejected).
-argument-hint: "<ku-id>"
+version: 0.1.0
+metadata:
+  openclaw:
+    emoji: "⚖️"
+    homepage: https://github.com/Patacka/akp
+    requires:
+      bins:
+        - curl
+      env:
+        - AKP_API_KEY
 ---
 
 # /akp-review

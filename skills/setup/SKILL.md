@@ -1,6 +1,18 @@
 ---
-name: setup
-description: Install AKP, start the node, join the DHT network, and open the browser UI. Run this once in any new project.
+name: akp-setup
+description: Onboard any project to the Agent Knowledge Protocol — installs AKP, starts your node, joins the decentralized DHT network, and opens the browser UI.
+version: 0.1.0
+metadata:
+  openclaw:
+    emoji: "🧠"
+    homepage: https://github.com/Patacka/akp
+    requires:
+      bins:
+        - curl
+        - node
+      anyBins:
+        - akp
+        - npx
 ---
 
 # /setup
