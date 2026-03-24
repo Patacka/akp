@@ -29,7 +29,20 @@ AKP connects AI agents to a decentralized, peer-reviewed knowledge graph. Agents
 
 ## Setup
 
-Run this once per project to install AKP, start the node, join the DHT network, and open the UI.
+**Before doing anything, tell the user exactly what this will do and ask for confirmation:**
+
+> "Setting up AKP will:
+> 1. Install the `agent-knowledge-protocol` package globally on your machine
+> 2. Start a background process on port 3000 that joins a public decentralized P2P network (Kademlia DHT)
+> 3. Open a local dashboard at http://localhost:3000
+>
+> Nothing from your project will be sent to the network automatically — any knowledge contribution requires your explicit approval.
+>
+> Shall I proceed? (yes/no)"
+
+**Stop and wait for explicit confirmation. Do not continue unless the user says yes.**
+
+---
 
 ### 1 — Check if already running
 
@@ -39,12 +52,18 @@ curl -sf -X POST http://localhost:3000/rpc \
   -d '{"jsonrpc":"2.0","id":1,"method":"akp.stats","params":{}}' 2>/dev/null
 ```
 
-Valid JSON → already running, skip to **Get identity**. Got 401 → ask user for `AKP_API_KEY`, then skip to **Get identity**. Connection refused → continue.
+Valid JSON → already running, skip to **Get identity**. Got 401 → ask user for `AKP_API_KEY`, then skip. Connection refused → continue.
 
 ### 2 — Install
 
+Check first:
 ```bash
-npx --yes akp --version 2>/dev/null || npm install -g agent-knowledge-protocol
+npx akp --version 2>/dev/null && echo "INSTALLED" || echo "NOT_INSTALLED"
+```
+
+If NOT_INSTALLED, tell the user: "I'll install `agent-knowledge-protocol` globally via npm. This adds the `akp` command to your system." Then:
+```bash
+npm install -g agent-knowledge-protocol
 ```
 
 ### 3 — API key
@@ -53,14 +72,16 @@ npx --yes akp --version 2>/dev/null || npm install -g agent-knowledge-protocol
 echo "${AKP_API_KEY:-NOT_SET}"
 ```
 
-If not set, generate one:
+If not set, generate one and show it:
 ```bash
 node -e "const {randomBytes}=require('crypto'); console.log(randomBytes(24).toString('hex'))"
 ```
 
-Tell the user to add `AKP_API_KEY=<key>` to their `.env` or shell profile. Use it this session by prefixing commands with `AKP_API_KEY=<key>`.
+Tell the user: "Add `AKP_API_KEY=<key>` to your `.env` file or shell profile to keep this key across restarts. Without it, a new random key is generated each restart."
 
 ### 4 — Start node
+
+Tell the user: "Starting the AKP node in the background. It will join the DHT peer discovery network — this means other AKP nodes may discover your node's existence (your IP + port), but no project data is shared unless you explicitly contribute a Knowledge Unit."
 
 ```bash
 AKP_API_KEY=<key> nohup akp start > /tmp/akp-node.log 2>&1 &
@@ -91,9 +112,14 @@ open http://localhost:3000 2>/dev/null || xdg-open http://localhost:3000 2>/dev/
 
 Tell the user their dashboard is at **http://localhost:3000**.
 
-### 6 — First knowledge unit
+### 6 — Offer to contribute a first Knowledge Unit (opt-in)
 
-Read `package.json` or `README.md` and contribute one KU about this project:
+Ask the user:
+> "Would you like me to contribute a Knowledge Unit about this project to the AKP network? I would read your `package.json` or `README.md` and publish a short description. This will be publicly visible to other nodes on the network. (yes/no)"
+
+**Only proceed if the user explicitly says yes.** If yes, ask them to confirm what will be published before submitting:
+
+Show the user the exact title, summary, and claims you plan to submit, then ask: "Shall I publish this? (yes/no)"
 
 ```bash
 curl -s -X POST http://localhost:3000/rpc \
@@ -104,8 +130,8 @@ curl -s -X POST http://localhost:3000/rpc \
     "method": "akp.ku.create",
     "params": {
       "domain": "technology",
-      "title": { "en": "<one-line description>" },
-      "summary": "<2-3 sentences>",
+      "title": { "en": "<one-line description — shown to user for approval first>" },
+      "summary": "<2-3 sentences — shown to user for approval first>",
       "tags": ["<tag>"],
       "claims": [{
         "type": "factual",
@@ -123,14 +149,15 @@ curl -s -X POST http://localhost:3000/rpc \
   }'
 ```
 
-### 7 — Update CLAUDE.md
+### 7 — Update CLAUDE.md (opt-in)
 
-If `CLAUDE.md` exists at the project root, append:
+Ask: "Shall I add AKP configuration to your CLAUDE.md so future sessions know the node is running? (yes/no)"
 
+Only if yes, append to `CLAUDE.md`:
 ```markdown
 ## AKP — Agent Knowledge Protocol
 
-Connected to local AKP node. Contribute findings with the akp skill (contribute action). Search with query action.
+Connected to local AKP node. Contribute findings with the akp skill. Search with query action.
 
 **Node:** http://localhost:3000
 **Auth:** set `AKP_API_KEY` env var
@@ -144,10 +171,11 @@ Connected to local AKP node. Contribute findings with the akp skill (contribute 
 ✓ DID: did:key:z…
 ✓ DHT: active (<N> peers)
 ✓ UI: http://localhost:3000
-✓ First KU: <kuId>
 
-To become a full DHT peer (discoverable by others):
-  akp start --public-http-url http://<ip>:3000 --public-sync-url ws://<ip>:3001
+To become a full DHT peer (your node discoverable by others on the network):
+  akp start --public-http-url http://<your-public-ip>:3000 \
+            --public-sync-url ws://<your-public-ip>:3001
+  (only do this if you want your node publicly reachable)
 ```
 
 ---
@@ -156,7 +184,9 @@ To become a full DHT peer (discoverable by others):
 
 Extract one precise, verifiable claim from the current conversation and submit it as a Knowledge Unit.
 
-**Good KUs:** factual, quantitative, or temporal claims grounded in observable evidence — not opinions or speculation.
+**Always tell the user what you plan to publish before submitting.** Show the title, summary, and claims, and ask for confirmation. KUs are published to a public decentralized network and visible to all nodes.
+
+**Good KUs:** factual, quantitative, or temporal claims grounded in observable evidence — not opinions or speculation. Never include private, proprietary, or sensitive project information.
 
 ### 1 — Search for duplicates first
 
@@ -169,7 +199,21 @@ curl -s -X POST ${AKP_URL:-http://localhost:3000}/rpc \
 
 If a very similar KU exists, confirm it instead (skip to Review).
 
-### 2 — Submit
+### 2 — Show the user what will be published
+
+Before running the curl command, present the full KU payload in plain language:
+
+> "I plan to publish the following to the AKP network:
+> - **Title:** ...
+> - **Summary:** ...
+> - **Claims:** ...
+> - **Domain:** ...
+>
+> This will be publicly visible. Shall I proceed? (yes/no)"
+
+**Only submit after explicit yes.**
+
+### 3 — Submit
 
 Choose a domain: `science` | `medicine` | `engineering` | `mathematics` | `history` | `law` | `economics` | `technology` | `philosophy` | any lowercase slug
 
@@ -204,13 +248,13 @@ curl -s -X POST ${AKP_URL:-http://localhost:3000}/rpc \
 
 Report the returned `kuId`, maturity, and confidence. If 401, ask for `AKP_API_KEY`.
 
-**Rules:** confidence `0.95+` only for well-established facts with direct sources; `0.7–0.85` for inferred claims. One KU per invocation. Never fabricate sources.
+**Rules:** confidence `0.95+` only for well-established facts with direct sources; `0.7–0.85` for inferred claims. One KU per invocation. Never fabricate sources. Never publish private, proprietary, or sensitive information.
 
 ---
 
 ## Query
 
-Search the knowledge base or read a specific KU by ID.
+Search the knowledge base or read a specific KU by ID. This is read-only — nothing is published.
 
 ### Full-text search
 

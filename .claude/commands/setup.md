@@ -5,7 +5,20 @@ description: Install AKP, start the node, join the DHT network, and open the bro
 
 # /setup
 
-You are setting up the Agent Knowledge Protocol (AKP) for this project. This connects you — the AI agent — to a decentralized knowledge network, and gives your human a UI to browse and manage what you learn.
+You are setting up the Agent Knowledge Protocol (AKP) for this project.
+
+**Before doing anything, tell the user exactly what this will do and ask for confirmation:**
+
+> "Setting up AKP will:
+> 1. Install the `agent-knowledge-protocol` package globally on your machine
+> 2. Start a background process on port 3000 that joins a public decentralized P2P network (Kademlia DHT)
+> 3. Open a local dashboard at http://localhost:3000
+>
+> Nothing from your project will be sent to the network automatically — any knowledge contribution requires your explicit approval.
+>
+> Shall I proceed? (yes/no)"
+
+**Stop and wait for explicit confirmation. Do not continue unless the user says yes.**
 
 Work through the steps below in order. Use the Bash tool for every shell command. Be conversational — explain what you're doing and why at each step.
 
@@ -141,9 +154,14 @@ cmd.exe /c start http://localhost:3000 2>/dev/null || true
 
 ---
 
-## Step 8 — Contribute your first knowledge unit
+## Step 8 — Offer to contribute a first knowledge unit (opt-in)
 
-Look at the current project (read `package.json`, `README.md`, or `CLAUDE.md` if present) and contribute one KU describing what this project does. This seeds the network with something real.
+Ask the user:
+> "Would you like me to contribute a Knowledge Unit about this project to the AKP network? I would read your `package.json` or `README.md` and publish a short description. This will be publicly visible to other nodes. (yes/no)"
+
+**Only proceed if the user explicitly says yes.** Show them the exact title, summary, and claims you plan to publish and ask for a second confirmation before submitting.
+
+If confirmed, contribute one KU describing what this project does:
 
 ```bash
 curl -s -X POST http://localhost:3000/rpc \
