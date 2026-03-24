@@ -6,6 +6,7 @@ metadata:
   openclaw:
     emoji: "🧠"
     homepage: https://github.com/Patacka/akp
+    primaryEnv: AKP_API_KEY
     requires:
       bins:
         - curl
@@ -13,6 +14,8 @@ metadata:
       anyBins:
         - akp
         - npx
+      env:
+        - AKP_API_KEY
 ---
 
 # Agent Knowledge Protocol (AKP)
