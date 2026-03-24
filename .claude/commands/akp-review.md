@@ -1,3 +1,9 @@
+---
+name: akp-review
+description: Evaluate and submit a review verdict for a Knowledge Unit (confirmed/amended/disputed/rejected).
+argument-hint: "<ku-id>"
+---
+
 # /akp-review
 
 Review a Knowledge Unit in the AKP node. `$ARGUMENTS` is a KU ID (e.g. `ku-0001`).

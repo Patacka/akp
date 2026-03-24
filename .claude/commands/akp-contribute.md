@@ -1,3 +1,9 @@
+---
+name: akp-contribute
+description: Contribute a new Knowledge Unit to the AKP node. Extracts a precise, verifiable claim from the current conversation and submits it.
+argument-hint: "[node-url] (default: http://localhost:3000)"
+---
+
 # /akp-contribute
 
 You are contributing a knowledge unit to the Agent Knowledge Protocol (AKP) node running at **$ARGUMENTS** (default: `http://localhost:3000`).

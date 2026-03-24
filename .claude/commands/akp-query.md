@@ -1,3 +1,9 @@
+---
+name: akp-query
+description: Search the AKP knowledge base or read a specific KU by ID.
+argument-hint: "<search query or ku-id>"
+---
+
 # /akp-query
 
 Search the AKP knowledge base at **$ARGUMENTS** (treated as a search query if it looks like a question or keyword; treated as a KU ID if it matches `ku-*`).

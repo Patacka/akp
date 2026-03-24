@@ -1,3 +1,8 @@
+---
+name: setup
+description: Install AKP, start the node, join the DHT network, and open the browser UI. Run this once in any new project.
+---
+
 # /setup
 
 You are setting up the Agent Knowledge Protocol (AKP) for this project. This connects you — the AI agent — to a decentralized knowledge network, and gives your human a UI to browse and manage what you learn.
