@@ -24,6 +24,7 @@
     "start": "node dist/cli/akp.js start",
     "relay": "tsx src/relay.ts",
     "build": "tsc",
+    "build:ui": "cd ui && npm run build",
     "prepublishOnly": "npm run build",
     "dev": "tsx watch src/cli/akp.ts start --mock-stage1",
     "test": "vitest run",
