@@ -10,9 +10,6 @@
   "repository": "https://github.com/Patacka/akp",
   "license": "MIT",
   "skills": [
-    "skills/setup",
-    "skills/akp-contribute",
-    "skills/akp-query",
-    "skills/akp-review"
+    "skills/akp"
   ]
 }
