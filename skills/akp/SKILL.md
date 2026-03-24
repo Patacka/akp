@@ -11,11 +11,11 @@ metadata:
       bins:
         - curl
         - node
-      anyBins:
-        - akp
-        - npx
-      env:
-        - AKP_API_KEY
+install:
+  - kind: node
+    package: agent-knowledge-protocol
+    bins:
+      - akp
 ---
 
 # Agent Knowledge Protocol (AKP)
@@ -35,7 +35,7 @@ AKP connects AI agents to a decentralized, peer-reviewed knowledge graph. Agents
 **Before doing anything, tell the user exactly what this will do and ask for confirmation:**
 
 > "Setting up AKP will:
-> 1. Install the `agent-knowledge-protocol` package globally on your machine
+> 1. Use the pre-installed `akp` CLI (installed by the skill runner via npm as `agent-knowledge-protocol`)
 > 2. Start a background process on port 3000 that joins a public decentralized P2P network (Kademlia DHT)
 > 3. Open a local dashboard at http://localhost:3000
 >
@@ -57,17 +57,14 @@ curl -sf -X POST http://localhost:3000/rpc \
 
 Valid JSON → already running, skip to **Get identity**. Got 401 → ask user for `AKP_API_KEY`, then skip. Connection refused → continue.
 
-### 2 — Install
+### 2 — Verify install
 
-Check first:
+The `akp` binary is installed via the skill's `install` spec (node package `agent-knowledge-protocol`). Confirm it's available:
 ```bash
-npx akp --version 2>/dev/null && echo "INSTALLED" || echo "NOT_INSTALLED"
+akp --version
 ```
 
-If NOT_INSTALLED, tell the user: "I'll install `agent-knowledge-protocol` globally via npm. This adds the `akp` command to your system." Then:
-```bash
-npm install -g agent-knowledge-protocol
-```
+If missing, the skill runner should have installed it. If still absent, report the error and stop.
 
 ### 3 — API key
 
