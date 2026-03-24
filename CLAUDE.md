@@ -46,3 +46,12 @@ npm run dev      # hot-reload dev mode
 ```
 
 Sync port is always HTTP port + 1 (default: 3001 WebSocket).
+
+## AKP — Agent Knowledge Protocol
+
+This project is connected to a local AKP node. As you work, contribute findings you are confident about using `/akp-contribute`. Search the knowledge base with `/akp-query`.
+
+**Node:** http://localhost:3000
+**UI:** http://localhost:3000 (open in browser)
+**Auth:** set `AKP_API_KEY` env var
+**Start node:** `akp start` (or `AKP_API_KEY=<key> npx akp start --mock-stage1`)
