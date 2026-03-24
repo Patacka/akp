@@ -19,6 +19,8 @@ import { createJanEntailmentClient } from '../pipeline/stage3-llamacpp.js'
 import { createLLMEntailmentChecker } from '../pipeline/stage3-rav.js'
 import { createMcpServer } from '../mcp/server.js'
 import { SyncPeer } from '../sync/peer.js'
+import { DHTPeer } from '../dht/dht.js'
+import { seedsFor } from '../dht/seeds.js'
 import { v7 as uuidv7 } from 'uuid'
 
 const CONFIG_DIR = join(process.env.HOME ?? process.cwd(), '.akp')
@@ -226,6 +228,9 @@ program
   .option('--peers <urls>', 'Comma-separated peer WebSocket URLs to connect to')
   .option('--network <id>', 'Network identifier: mainnet|testnet|devnet (default: mainnet)', process.env.AKP_NETWORK_ID ?? 'mainnet')
   .option('--min-version <semver>', 'Minimum peer version to accept (default: 0.1.0)', process.env.AKP_MIN_PEER_VERSION ?? '0.1.0')
+  .option('--no-dht', 'Disable Kademlia DHT peer discovery')
+  .option('--public-http-url <url>', 'Public HTTP base URL (enables full DHT participation, e.g. http://myserver:3000)', process.env.PUBLIC_HTTP_URL)
+  .option('--public-sync-url <url>', 'Public WebSocket URL (enables full DHT participation, e.g. ws://myserver:3001)', process.env.PUBLIC_SYNC_URL)
   .action(async (opts) => {
     console.log(AKP_BANNER)
 
@@ -275,6 +280,28 @@ program
       entailmentChecker,
     })
 
+    // DHT peer — every node participates by default (BitTorrent-style)
+    // Full peer: mounts /dht/* routes + announces itself (requires public URLs)
+    // Outbound-only: queries DHT to find peers, but doesn't serve routes
+    let dhtPeer: DHTPeer | undefined
+    if (opts.dht !== false) {
+      const identity = JSON.parse(
+        (await import('fs')).readFileSync(identityPath, 'utf8')
+      ) as { did: string }
+      dhtPeer = new DHTPeer({
+        did:       identity.did,
+        syncUrl:   opts.publicSyncUrl ?? '',
+        httpUrl:   opts.publicHttpUrl ?? '',
+        networkId: opts.network,
+      })
+      if (opts.publicHttpUrl) {
+        dhtPeer.mount(app)
+        console.log(`DHT:   full peer  httpUrl=${opts.publicHttpUrl}  syncUrl=${opts.publicSyncUrl ?? ''}`)
+      } else {
+        console.log(`DHT:   outbound-only (set --public-http-url + --public-sync-url to become a full peer)`)
+      }
+    }
+
     // Mount MCP over HTTP on the same Express app unless disabled
     if (opts.mcpHttp !== false) {
       const { mountHttp } = createMcpServer({ store, graph })
@@ -305,6 +332,35 @@ program
       }).catch((err: Error) => {
         console.warn(`Could not connect to peer ${peerUrl}: ${err.message}`)
       })
+    }
+
+    // DHT bootstrap: seed routing table, discover peers, announce self
+    if (dhtPeer) {
+      const dht = dhtPeer
+      const seeds = seedsFor(opts.network)
+      const peerList = (process.env.AKP_PEERS ?? opts.peers ?? '').split(',').map((p: string) => p.trim()).filter(Boolean)
+      const seedHttpUrls = [
+        ...seeds.map(s => s.httpUrl),
+        ...peerList.map((url: string) =>
+          url.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://')
+        ),
+      ]
+      if (seedHttpUrls.length > 0) {
+        dht.bootstrap(seedHttpUrls).then(async () => {
+          const discovered = await dht.findPeers()
+          for (const url of discovered) {
+            syncPeer.connectTo(url).catch(() => { /* non-fatal */ })
+          }
+          await dht.announce()
+          console.log(`DHT bootstrap complete — ${dht.routingTableSize()} contacts, ${discovered.length} sync peers found`)
+        }).catch(() => { /* offline — retry not needed, DHT is best-effort */ })
+      }
+
+      // Re-announce every 30 minutes
+      const announceInterval = setInterval(() => {
+        dht.announce().catch(() => {})
+      }, 30 * 60 * 1000)
+      announceInterval.unref()
     }
 
     // Governance finalization scheduler

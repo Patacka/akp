@@ -6,6 +6,7 @@ This is the AKP codebase. You are likely here to either develop the protocol or 
 
 | Command | Purpose |
 |---|---|
+| `/setup` | **First time?** Install AKP, start the node, join the DHT network, open the UI |
 | `/akp-contribute [url]` | Contribute a new Knowledge Unit to an AKP node |
 | `/akp-query <search or ku-id>` | Search the knowledge base or read a specific KU |
 | `/akp-review <ku-id>` | Evaluate and review a Knowledge Unit |

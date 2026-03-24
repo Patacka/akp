@@ -69,15 +69,14 @@ export interface AKPNodeOptions {
   networkId?: string
 
   /**
-   * Enable Kademlia DHT peer discovery. When true, the node joins the
-   * distributed hash table and discovers sync peers automatically — no
-   * hardcoded relay URLs required.
+   * Enable Kademlia DHT peer discovery. Every node participates by default
+   * (BitTorrent-style) — no relay required. Set to false to disable entirely.
    *
    * Full participation (serving DHT routes + accepting sync connections)
-   * requires port > 0 and syncPort > 0 with publicly reachable URLs.
-   * Outbound-only agents can still query the DHT to find peers.
+   * requires port > 0 and publicly reachable URLs via publicHttpUrl/publicSyncUrl.
+   * Nodes without public URLs participate outbound-only (query DHT to find peers).
    *
-   * Default: false
+   * Default: true
    */
   dht?: boolean
 
@@ -195,8 +194,8 @@ export class AKPNode {
       node._sync.startServer()
     }
 
-    // DHT peer — create early so routes can be mounted before HTTP listen
-    if (options.dht) {
+    // DHT peer — every node participates by default (BitTorrent-style)
+    if (options.dht !== false) {
       node._dht = new DHTPeer({
         did:       identity.did,
         syncUrl:   options.publicSyncUrl ?? '',
@@ -238,7 +237,7 @@ export class AKPNode {
     }
 
     // DHT bootstrap: seed routing table + discover sync peers
-    if (options.dht && node._dht) {
+    if (options.dht !== false && node._dht) {
       const dht = node._dht
       const seeds = seedsFor(networkId)
       const seedHttpUrls = [
