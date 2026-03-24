@@ -136,7 +136,7 @@ export default function KUDetail({ kuId }: KUDetailProps) {
         <div className="detail-meta">
           <span className="domain-badge">{ku.meta.domain}</span>
           <MaturityBadge maturity={ku.meta.maturity} />
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>v{ku.version}</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>v{ku.version?.semver ?? ku.version}</span>
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>
             Created {new Date(ku.meta.created).toLocaleDateString()}
           </span>

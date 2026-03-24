@@ -25,7 +25,7 @@ export const DEMO_STATS: Stats = {
 export const DEMO_KUS: KU[] = [
   {
     id: 'ku-0001',
-    version: 3,
+    version: { semver: "1.0.0", vectorClock: {}, automergeHeads: [] },
     meta: {
       domain: 'science',
       title: { en: 'Black holes evaporate via Hawking radiation' },
@@ -60,7 +60,7 @@ export const DEMO_KUS: KU[] = [
   },
   {
     id: 'ku-0002',
-    version: 2,
+    version: { semver: "1.0.0", vectorClock: {}, automergeHeads: [] },
     meta: {
       domain: 'medicine',
       title: { en: 'CRISPR-Cas9 enables precise genome editing in human cells' },
@@ -94,7 +94,7 @@ export const DEMO_KUS: KU[] = [
   },
   {
     id: 'ku-0003',
-    version: 1,
+    version: { semver: "1.0.0", vectorClock: {}, automergeHeads: [] },
     meta: {
       domain: 'mathematics',
       title: { en: 'The Riemann Hypothesis remains unproven' },
@@ -127,7 +127,7 @@ export const DEMO_KUS: KU[] = [
   },
   {
     id: 'ku-0004',
-    version: 2,
+    version: { semver: "1.0.0", vectorClock: {}, automergeHeads: [] },
     meta: {
       domain: 'engineering',
       title: { en: 'Transformer architecture underpins modern large language models' },
@@ -162,7 +162,7 @@ export const DEMO_KUS: KU[] = [
   },
   {
     id: 'ku-0005',
-    version: 1,
+    version: { semver: "1.0.0", vectorClock: {}, automergeHeads: [] },
     meta: {
       domain: 'history',
       title: { en: 'The printing press was invented around 1440 by Gutenberg' },
@@ -195,7 +195,7 @@ export const DEMO_KUS: KU[] = [
   },
   {
     id: 'ku-0006',
-    version: 2,
+    version: { semver: "1.0.0", vectorClock: {}, automergeHeads: [] },
     meta: {
       domain: 'medicine',
       title: { en: 'mRNA vaccines train the immune system without using live virus' },
@@ -228,7 +228,7 @@ export const DEMO_KUS: KU[] = [
   },
   {
     id: 'ku-0007',
-    version: 1,
+    version: { semver: "1.0.0", vectorClock: {}, automergeHeads: [] },
     meta: {
       domain: 'science',
       title: { en: 'The speed of light in vacuum is approximately 299,792,458 m/s' },
@@ -261,7 +261,7 @@ export const DEMO_KUS: KU[] = [
   },
   {
     id: 'ku-0008',
-    version: 1,
+    version: { semver: "1.0.0", vectorClock: {}, automergeHeads: [] },
     meta: {
       domain: 'engineering',
       title: { en: 'SQLite is the most widely deployed database engine' },

@@ -1,6 +1,6 @@
 export interface KU {
   id: string
-  version: number
+  version: { semver: string; vectorClock: Record<string, number>; automergeHeads: string[] }
   meta: {
     domain: string
     title: Record<string, string>
