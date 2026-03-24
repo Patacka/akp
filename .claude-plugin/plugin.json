@@ -1,0 +1,15 @@
+{
+  "name": "akp",
+  "description": "Agent Knowledge Protocol — decentralized peer-reviewed knowledge graph for AI agents. Contribute facts, query the network, review claims, and onboard to the DHT network.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Patacka",
+    "url": "https://github.com/Patacka"
+  },
+  "homepage": "https://github.com/Patacka/akp",
+  "repository": "https://github.com/Patacka/akp",
+  "license": "MIT",
+  "skills": [
+    "skills/akp"
+  ]
+}
