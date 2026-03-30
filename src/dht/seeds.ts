@@ -21,8 +21,7 @@ export interface SeedNode {
 }
 
 export const MAINNET_SEEDS: SeedNode[] = [
-  // Add seed nodes here as the network grows
-  // { httpUrl: 'https://akp-relay-1.fly.dev', syncUrl: 'wss://akp-relay-1.fly.dev', operator: 'akp-core' },
+  { httpUrl: 'http://82.165.116.110:3000', syncUrl: 'ws://82.165.116.110:3001', operator: 'akp-core' },
 ]
 
 export const TESTNET_SEEDS: SeedNode[] = [

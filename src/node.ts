@@ -176,7 +176,7 @@ export class AKPNode {
     const identity   = await loadOrCreateIdentity(identityPath)
     const store      = new KUStore({ dbPath: storePath })
     const graph      = store.buildGraph()
-    const peerTable  = new PeerTable(options.devMode ?? false)
+    const peerTable  = new PeerTable(options.devMode ?? false, store.database)
     const networkId  = options.networkId ?? 'mainnet'
 
     const node = new AKPNode(identity, store, graph, peerTable, networkId)

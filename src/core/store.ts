@@ -192,8 +192,21 @@ export class KUStore {
       );
       CREATE INDEX IF NOT EXISTS idx_rcommit_ku ON review_commits(ku_id);
       CREATE INDEX IF NOT EXISTS idx_rcommit_did ON review_commits(reviewer_did);
+
+      -- ── Peer table (persistent across restarts) ────────────────────────────
+      CREATE TABLE IF NOT EXISTS peers (
+        nodeId     TEXT PRIMARY KEY,
+        address    TEXT NOT NULL,
+        port       INTEGER NOT NULL,
+        lastSeenMs INTEGER NOT NULL,
+        failCount  INTEGER NOT NULL DEFAULT 0,
+        source     TEXT NOT NULL
+      );
     `)
   }
+
+  /** Expose the underlying database for modules that need direct access (e.g. PeerTable). */
+  get database(): Database.Database { return this.db }
 
   private _loadAll() {
     const rows = this.db.prepare('SELECT id, automerge_binary FROM knowledge_units').all() as Array<{id: string, automerge_binary: Buffer}>

@@ -22,6 +22,8 @@
  * peer announcements.
  */
 
+import type Database from 'better-sqlite3'
+
 export const MAX_PEX_PEERS = 20       // max peers to share in one exchange
 export const MAX_FAIL_COUNT = 5       // evict after 5 consecutive connection failures
 export const TARGET_PEER_COUNT = 8    // target number of active connections
@@ -49,25 +51,38 @@ export interface BootstrapRegistryConfig {
   networkId: string
 }
 
-// ── In-memory peer table ──────────────────────────────────────────────────────
+// ── In-memory + SQLite-persisted peer table ───────────────────────────────────
 
 export class PeerTable {
   private peers = new Map<string, PeerEntry>()  // nodeId → entry
   private devMode: boolean
+  private db: Database.Database | null
 
-  constructor(devMode = false) {
+  constructor(devMode = false, db: Database.Database | null = null) {
     this.devMode = devMode
+    this.db = db
+    if (db) {
+      // Load all persisted peers into memory on startup
+      const rows = db.prepare('SELECT * FROM peers').all() as PeerEntry[]
+      for (const row of rows) {
+        this.peers.set(row.nodeId, row)
+      }
+    }
   }
 
   /** Add or refresh a peer entry */
   upsert(entry: Omit<PeerEntry, 'lastSeenMs' | 'failCount'> & Partial<Pick<PeerEntry, 'failCount'>>): void {
     if (!this.isValidAddress(entry.address)) return
     const existing = this.peers.get(entry.nodeId)
-    this.peers.set(entry.nodeId, {
+    const saved: PeerEntry = {
       ...entry,
       lastSeenMs: Date.now(),
       failCount: entry.failCount ?? existing?.failCount ?? 0,
-    })
+    }
+    this.peers.set(entry.nodeId, saved)
+    this.db?.prepare(
+      'INSERT OR REPLACE INTO peers (nodeId, address, port, lastSeenMs, failCount, source) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(saved.nodeId, saved.address, saved.port, saved.lastSeenMs, saved.failCount, saved.source)
   }
 
   /** Record a failed connection attempt; evict if over threshold */
@@ -77,14 +92,19 @@ export class PeerTable {
     const failCount = entry.failCount + 1
     if (failCount >= MAX_FAIL_COUNT) {
       this.peers.delete(nodeId)
+      this.db?.prepare('DELETE FROM peers WHERE nodeId = ?').run(nodeId)
     } else {
       this.peers.set(nodeId, { ...entry, failCount })
+      this.db?.prepare('UPDATE peers SET failCount = ? WHERE nodeId = ?').run(failCount, nodeId)
     }
   }
 
   recordSuccess(nodeId: string): void {
     const entry = this.peers.get(nodeId)
-    if (entry) this.peers.set(nodeId, { ...entry, failCount: 0, lastSeenMs: Date.now() })
+    if (!entry) return
+    const now = Date.now()
+    this.peers.set(nodeId, { ...entry, failCount: 0, lastSeenMs: now })
+    this.db?.prepare('UPDATE peers SET failCount = 0, lastSeenMs = ? WHERE nodeId = ?').run(now, nodeId)
   }
 
   /** Return up to n peers for exchange, most-recently-seen first */
