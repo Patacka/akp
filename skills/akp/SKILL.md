@@ -1,7 +1,7 @@
 ---
 name: akp
 description: Agent Knowledge Protocol — connect any project to a decentralized peer-reviewed knowledge network. Setup, contribute, query, and review knowledge units in one skill.
-version: 0.1.1
+version: 0.1.2
 metadata:
   openclaw:
     emoji: "🧠"
@@ -11,11 +11,7 @@ metadata:
       bins:
         - curl
         - node
-install:
-  - kind: node
-    package: agent-knowledge-protocol
-    bins:
-      - akp
+        - npm
 ---
 
 # Agent Knowledge Protocol (AKP)
@@ -58,14 +54,28 @@ curl -sf -X POST http://localhost:3000/rpc \
 
 Valid JSON → already running, skip to **Get identity**. Got 401 → ask user for `AKP_API_KEY`, then skip. Connection refused → continue.
 
-### 2 — Verify install
+### 2 — Verify or install the `akp` CLI
 
-The `akp` binary is installed via the skill's `install` spec (node package `agent-knowledge-protocol`). Confirm it's available:
+Check if the binary is already available:
 ```bash
+akp --version 2>/dev/null && echo "found" || echo "missing"
+```
+
+If missing, show the user this command and ask for confirmation before running it:
+
+> "The `akp` CLI is not installed. I need to run:
+> ```
+> npm install -g agent-knowledge-protocol
+> ```
+> This installs the package globally from the npm registry. Shall I proceed? (yes/no)"
+
+**Only install after explicit yes.** Then run:
+```bash
+npm install -g agent-knowledge-protocol
 akp --version
 ```
 
-If missing, the skill runner should have installed it. If still absent, report the error and stop.
+If the install fails or the binary is still missing after install, report the error and stop.
 
 ### 3 — API key
 
