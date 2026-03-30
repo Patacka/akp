@@ -313,10 +313,15 @@ program
     console.log(`Network: ${opts.network}  |  Node version: 0.1.0  |  Min peer version: ${opts.minVersion}`)
 
     // Sync peer: keeps in-memory graph current as gossip arrives
+    const syncIdentity = existsSync(identityPath)
+      ? JSON.parse(readFileSync(identityPath, 'utf8')) as { did: string; privateKeyHex: string; publicKeyHex: string }
+      : undefined
     const syncPeer = new SyncPeer({
       store,
       port: parseInt(opts.port) + 1,
+      identity: syncIdentity,
       requireAuth: true,
+      maxMsgPerSecond: 200,
       onKUSynced: (ku) => graph.addKU(ku),
       version: '0.1.0',
       minVersion: opts.minVersion,

@@ -383,9 +383,24 @@ export class SyncPeer {
         this._send(ws, { type: 'ids_response', ids: this.store.allIds() })
         break
 
-      case 'ids_response':
-        for (const kuId of msg.ids) this._initSync(ws, peerId, kuId)
+      case 'ids_response': {
+        // Stagger sync initiation to avoid triggering the server's rate limiter
+        // when a large number of KUs need to be synced at once.
+        const BATCH = 10
+        const DELAY_MS = 60
+        const ids = msg.ids
+        const sendBatch = (offset: number) => {
+          if (ws.readyState !== WebSocket.OPEN) return
+          for (let i = offset; i < Math.min(offset + BATCH, ids.length); i++) {
+            this._initSync(ws, peerId, ids[i])
+          }
+          if (offset + BATCH < ids.length) {
+            setTimeout(() => sendBatch(offset + BATCH), DELAY_MS)
+          }
+        }
+        sendBatch(0)
         break
+      }
 
       case 'sync':
         if (msg.kuId && msg.data) {
